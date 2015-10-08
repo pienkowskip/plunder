@@ -1,0 +1,2 @@
+class IllegalStateError < RuntimeError
+end

@@ -2,5 +2,5 @@
 
 require 'faucet'
 
-puts 'Hello world!'
-puts "version: #{Faucet::VERSION}"
+app = Faucet.new('../configs/test.yml')
+app.logger.debug("9kw.eu api key: #{app.config.auth[:'9kw.eu'][:api_key]}")
