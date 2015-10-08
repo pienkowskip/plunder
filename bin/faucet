@@ -1,6 +1,10 @@
 #!/usr/bin/env ruby
 
 require 'faucet'
+require 'pry'
 
 app = Faucet.new('../configs/test.yml')
-app.logger.debug("9kw.eu api key: #{app.config.auth[:'9kw.eu'][:api_key]}")
+# app.webdriver.navigate.to('http://moonliteco.in/')
+app.webdriver.navigate.to('http://moonbit.co.in/')
+app.claim
+app.shutdown

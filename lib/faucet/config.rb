@@ -3,7 +3,7 @@ require_relative 'utility/logging'
 require_relative 'exceptions'
 
 class Faucet::Config
-  attr_reader :application, :auth
+  attr_reader :application, :auth, :browser
 
   def initialize(fname)
     begin
@@ -11,7 +11,7 @@ class Faucet::Config
     rescue SyntaxError
       raise Faucet::ConfigError, 'configuration file invalid syntax'
     end
-    [:application, :auth].each do |key|
+    [:application, :auth, :browser].each do |key|
       raise Faucet::ConfigError, "configuration file not sufficient: missing '#{key}' entry" unless config.include?(key)
       instance_variable_set :"@#{key}", config[key].freeze
     end
@@ -21,16 +21,16 @@ class Faucet::Config
   private
 
   def setup_logger
-    return false unless application.include? :logger
+    return false unless application.include?(:logger)
     logger = application[:logger]
     logdev_map = {
         '<stdout>' => STDOUT,
         '<stderr>' => STDERR
     }
-    file = logger.fetch :file
-    file = logdev_map[file.downcase] if logdev_map.include? file.downcase
+    file = logger.fetch(:file)
+    file = logdev_map[file.downcase] if logdev_map.include?(file.downcase)
     level = Logger::Severity.const_get(logger.fetch(:level).upcase.to_sym, false)
-    Faucet::Utility::Logging.setup file, level
+    Faucet::Utility::Logging.setup(file, level)
     true
   rescue => err
     raise Faucet::ConfigEntryError.new('application.logger', err)

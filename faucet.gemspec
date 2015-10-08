@@ -18,9 +18,10 @@ Gem::Specification.new do |spec|
 
   spec.files         = `git ls-files`.split($/)
   spec.executables   = ['faucet']
-  spec.require_paths = ['lib']
+  spec.require_paths = ['lib', 'var']
 
-  # spec.add_runtime_dependency
+  spec.add_runtime_dependency 'selenium-webdriver', '~> 2.48'
+  spec.add_runtime_dependency 'chunky_png'
 
   spec.add_development_dependency 'bundler', '~> 1.3'
   spec.add_development_dependency 'pry', '~> 0.10'
