@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+
+require 'faucet'
+
+puts 'Hello world!'
+puts "version: #{Faucet::VERSION}"
