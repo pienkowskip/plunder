@@ -4,14 +4,19 @@ require 'chunky_png'
 require_relative 'faucet/version'
 require_relative 'faucet/config'
 require_relative 'faucet/utility/logging'
+require_relative 'faucet/captcha/solver'
 
 class Faucet
   include Utility::Logging
 
-  attr_reader :config
+  CAPTCHA_LOAD_DELAY = 5
+  CAPTCHA_SOLVER_RETRIES = 3
 
-  def initialize(config_filename)
+  attr_reader :config, :url, :address
+
+  def initialize(config_filename, url, address)
     @config = Config.new(config_filename).freeze
+    @url, @address = url.to_s.dup.freeze, address.to_s.dup.freeze
   end
 
   def webdriver
@@ -25,9 +30,14 @@ class Faucet
     else
       @webdriver = Selenium::WebDriver.for(webdriver)
     end
-    @webdriver.manage.window.maximize #resize_to(800, 600)
-    # logger.info "New browser pid: #{@webdriver.child_process.pid}"
+    # @webdriver.manage.window.maximize
+    @webdriver.manage.window.resize_to(1001, 801)
     @webdriver
+  end
+
+  def captcha_solver
+    return @captcha_solver if @captcha_solver
+    @captcha_solver = Captcha::Solver.new(webdriver)
   end
 
   def signed_in?
@@ -38,7 +48,15 @@ class Faucet
   end
 
   def sign_in
-
+    sign_in_button = webdriver.find_element(:id, 'SignInButton')
+    raise Selenium::WebDriver::Error::ElementNotVisibleError, 'sign in button not visible' unless sign_in_button.displayed?
+    address_input = webdriver.find_element(:id, 'BodyPlaceholder_PaymentAddressTextbox')
+    raise Selenium::WebDriver::Error::ElementNotVisibleError, 'address input not visible' unless address_input.displayed?
+    address_input.send_keys(address)
+      sign_in_button.click
+      solve_captcha
+  # rescue => error
+  #   raise Faucet::SigningInError, "#{error.to_s} (#{error.class.name})"
   end
 
   def can_claim?
@@ -48,45 +66,25 @@ class Faucet
   end
 
   def claim
-    submit_button = webdriver.find_element(id: 'SubmitButton')
-    return false unless submit_button.displayed?
-    submit_button.click
-    sleep 5
-    captcha = webdriver.find_element(id: 'adcopy-puzzle-image')
-    # puts captcha.location.x, captcha.location.y
-    # webdriver.save_screenshot("screenshot_#{Time.new.strftime('%Y%m%dT%H%M%S')}.png")
-    # pry self
-    element_screenshot(captcha).save("captcha-#{Time.new.strftime('%Y%m%dT%H%M%S')}.png")
-    pry self
-    # resolve_captcha
-    # puts webdriver.find_element(:id, 'CaptchaPopup')
-    # puts webdriver.find_element(:id, 'CaptchaPopup').displayed?
-    # webdriver.switch_to
+    webdriver.navigate.to(url)
+    unless signed_in?
+      sign_in
+    end
     true
   end
 
-  def resolve_captcha
-    webdriver.find_element(id: 'adcopy-puzzle-image').click
-    message = ''
-    puts message
-    webdriver.find_element(id: 'adcopy-expanded-response').send_keys(message)
-    webdriver.save_screenshot("screenshot_#{Time.new.strftime('%Y%m%dT%H%M%S')}.png")
-    webdriver.find_element(id: 'adcopy-expanded-response').send_keys(:return)
-    webdriver.find_element(id: 'adcopy_response').send_keys(:return)
-    puts webdriver.find_element(id: 'BodyPlaceholder_SuccessfulClaimPanel').displayed?
+  def solve_captcha
+    sleep CAPTCHA_LOAD_DELAY
+    captcha_solver.solve
+    # webdriver.find_element(id: 'adcopy-puzzle-image').click
+    # webdriver.find_element(id: 'adcopy-expanded-response').send_keys(message)
+    # webdriver.find_element(id: 'adcopy_response').send_keys(:return)
+    # puts webdriver.find_element(id: 'BodyPlaceholder_SuccessfulClaimPanel').displayed?
     # puts webdriver.find_element(id: 'BodyPlaceholder_FailedClaimPanel').displayed?
   end
 
-  def element_screenshot(element)
-    image = ChunkyPNG::Image.from_string(webdriver.screenshot_as(:png))
-    location = element.location_once_scrolled_into_view
-    image.crop!(*[location.x, location.y, element.size.width, element.size.height].map(&:to_i))
-  end
 
   def can_sign_in?
-    webdriver.find_element(:id, 'SignInButton')
-    webdriver.find_element(:id, 'BodyPlaceholder_PaymentAddressTextbox')
-    true
   rescue Selenium::WebDriver::Error::NoSuchElementError
     false
   end

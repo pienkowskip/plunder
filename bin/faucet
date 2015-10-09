@@ -3,8 +3,12 @@
 require 'faucet'
 require 'pry'
 
-app = Faucet.new('../configs/test.yml')
-# app.webdriver.navigate.to('http://moonliteco.in/')
-app.webdriver.navigate.to('http://moonbit.co.in/')
-app.claim
-app.shutdown
+app = Faucet.new('../configs/test.yml', 'http://moonbit.co.in/', '1KFHezCg1LPRsShhgVNFbq1BSxnERRvDom')
+begin
+  app.claim
+rescue
+  app.webdriver.save_screenshot('error_screenshot-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S'))
+  raise
+ensure
+  app.shutdown
+end

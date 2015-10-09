@@ -9,4 +9,13 @@ class Faucet
       super(msg)
     end
   end
+
+  class UnsolvableCaptchaError < StandardError
+  end
+
+  class SigningInError < StandardError
+  end
+
+  class ClaimingError < StandardError
+  end
 end
