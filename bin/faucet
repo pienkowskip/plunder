@@ -4,6 +4,7 @@ require 'faucet'
 require 'pry'
 
 app = Faucet.new('../configs/test.yml', 'http://moonbit.co.in/', '1KFHezCg1LPRsShhgVNFbq1BSxnERRvDom')
+# app = Faucet.new('../configs/test.yml', 'http://moonliteco.in/', '33GvD58R2m6h81eg9Jai6MHGR2e3jcQiSR')
 begin
   app.claim
 rescue

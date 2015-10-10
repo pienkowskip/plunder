@@ -30,8 +30,8 @@ class Faucet
     else
       @webdriver = Selenium::WebDriver.for(webdriver)
     end
-    # @webdriver.manage.window.maximize
-    @webdriver.manage.window.resize_to(1001, 801)
+    @webdriver.manage.window.maximize
+    # @webdriver.manage.window.resize_to(1000, 800)
     @webdriver
   end
 
@@ -52,9 +52,13 @@ class Faucet
     raise Selenium::WebDriver::Error::ElementNotVisibleError, 'sign in button not visible' unless sign_in_button.displayed?
     address_input = webdriver.find_element(:id, 'BodyPlaceholder_PaymentAddressTextbox')
     raise Selenium::WebDriver::Error::ElementNotVisibleError, 'address input not visible' unless address_input.displayed?
-    address_input.send_keys(address)
-      sign_in_button.click
-      solve_captcha
+    address_input.send_keys(address, :return)
+    unless signed_in?
+      logger.warn { 'Signing in with address %s failure. Unknown reason.' % address }
+      raise Faucet::SigningInError, 'signing in failure'
+    end
+    logger.info { 'Signing in with address %s success.' % address }
+    true
   # rescue => error
   #   raise Faucet::SigningInError, "#{error.to_s} (#{error.class.name})"
   end
@@ -67,26 +71,21 @@ class Faucet
 
   def claim
     webdriver.navigate.to(url)
-    unless signed_in?
-      sign_in
-    end
+    sign_in unless signed_in?
+    webdriver.find_element(id: 'SubmitButton').click
+    solve_captcha
+    #TODO: Read result and print log.
     true
   end
 
   def solve_captcha
     sleep CAPTCHA_LOAD_DELAY
     captcha_solver.solve
-    # webdriver.find_element(id: 'adcopy-puzzle-image').click
-    # webdriver.find_element(id: 'adcopy-expanded-response').send_keys(message)
+    # webdriver.find_element(id: 'adcopy-link-refresh')
+
     # webdriver.find_element(id: 'adcopy_response').send_keys(:return)
     # puts webdriver.find_element(id: 'BodyPlaceholder_SuccessfulClaimPanel').displayed?
     # puts webdriver.find_element(id: 'BodyPlaceholder_FailedClaimPanel').displayed?
-  end
-
-
-  def can_sign_in?
-  rescue Selenium::WebDriver::Error::NoSuchElementError
-    false
   end
 
   def shutdown
