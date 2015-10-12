@@ -2,10 +2,10 @@
 require 'base64'
 require 'tesseract'
 
-require_relative 'captcha'
+require_relative 'base'
 require_relative '../exceptions'
 
-class Faucet::Captcha::Sponsored < Faucet::Captcha::Captcha
+class Faucet::Captcha::Sponsored < Faucet::Captcha::Base
   EMBEDDED_PNG_PREFIX = 'url(data:image/png;base64,'.freeze
   EMBEDDED_PNG_SUFFIX = ')'.freeze
   PROPER_PREFIXES = [
@@ -15,7 +15,7 @@ class Faucet::Captcha::Sponsored < Faucet::Captcha::Captcha
 
   attr_reader :ocr_engine
 
-  def initialize(webdriver)
+  def initialize(dm)
     super
     @ocr_engine = Tesseract::Engine.new do |engine|
       engine.language  = :en
@@ -25,10 +25,10 @@ class Faucet::Captcha::Sponsored < Faucet::Captcha::Captcha
 
   def solve(element)
     frame = element.find_element(xpath: './iframe')
-    webdriver.switch_to.frame(frame)
-    webdriver.find_element(id: 'playInstr')
-    webdriver.find_element(id: 'playBtn')
-    image = webdriver.find_element(id: 'overlay').css_value('background-image')
+    dm.webdriver.switch_to.frame(frame)
+    dm.webdriver.find_element(id: 'playInstr')
+    dm.webdriver.find_element(id: 'playBtn')
+    image = dm.webdriver.find_element(id: 'overlay').css_value('background-image')
     raise Faucet::UnsolvableCaptchaError 'sponsored captcha code element is not embedded PNG' unless image.start_with?(EMBEDDED_PNG_PREFIX) && image.end_with?(EMBEDDED_PNG_SUFFIX)
     image = Base64.decode64(image.slice(EMBEDDED_PNG_PREFIX.length..(-EMBEDDED_PNG_SUFFIX.length - 1)))
     image = ChunkyPNG::Image.from_blob(image)
@@ -42,6 +42,6 @@ class Faucet::Captcha::Sponsored < Faucet::Captcha::Captcha
   rescue Selenium::WebDriver::Error::NoSuchElementError
     return false
   ensure
-    webdriver.switch_to.default_content
+    dm.webdriver.switch_to.default_content
   end
 end

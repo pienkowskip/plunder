@@ -6,6 +6,7 @@ require 'pry'
 app = Faucet.new('../configs/test.yml', 'http://moonbit.co.in/', '1KFHezCg1LPRsShhgVNFbq1BSxnERRvDom')
 # app = Faucet.new('../configs/test.yml', 'http://moonliteco.in/', '33GvD58R2m6h81eg9Jai6MHGR2e3jcQiSR')
 begin
+  app.setup_webdriver
   app.claim
 rescue => exc
   # app.webdriver.save_screenshot('error_screenshot-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S'))

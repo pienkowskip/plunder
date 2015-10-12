@@ -12,19 +12,19 @@ class Faucet
     class Solver
       include Faucet::Utility::Logging
 
-      attr_reader :webdriver, :solvers
+      attr_reader :dm, :solvers
 
-      def initialize(webdriver)
-        @webdriver = webdriver
+      def initialize(dm)
+        @dm = dm
         @solvers = [
-            Faucet::Captcha::Sponsored.new(webdriver),
-            Faucet::Captcha::Canvas.new(webdriver),
-            Faucet::Captcha::Image.new(webdriver)
+            Faucet::Captcha::Sponsored.new(dm),
+            Faucet::Captcha::Canvas.new(dm),
+            Faucet::Captcha::Image.new(dm)
         ]
       end
 
       def solve
-        popup = webdriver.find_element(id: 'CaptchaPopup')
+        popup = dm.webdriver.find_element(id: 'CaptchaPopup')
         raise Selenium::WebDriver::Error::ElementNotVisibleError, 'captcha popup not visible' unless popup.displayed?
         captcha = popup.find_element(id: 'adcopy-puzzle-image-image')
         raise Selenium::WebDriver::Error::ElementNotVisibleError, 'captcha element not visible' unless captcha.displayed?
@@ -42,7 +42,7 @@ class Faucet
           logger.debug { 'Captcha type not recognized.' }
           raise Faucet::UnsolvableCaptchaError, 'cannot recognize captcha type'
         end
-        webdriver.find_element(id: 'adcopy_response').send_keys(answer, :return)
+        dm.webdriver.find_element(id: 'adcopy_response').send_keys(answer, :return)
         if result_visible?('BodyPlaceholder_SuccessfulClaimPanel')
           logger.info { 'Captcha properly solved. Answer accepted.' }
           # solved_by.answer_accepted
@@ -59,7 +59,7 @@ class Faucet
       private
 
       def result_visible?(id)
-        webdriver.find_element(id: id).displayed?
+        dm.webdriver.find_element(id: id).displayed?
       rescue Selenium::WebDriver::Error::NoSuchElementError
         return false
       end

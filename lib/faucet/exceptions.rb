@@ -10,6 +10,9 @@ class Faucet
     end
   end
 
+  class DependencyError < RuntimeError
+  end
+
   class UnsolvableCaptchaError < StandardError
   end
 

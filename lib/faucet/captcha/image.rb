@@ -1,11 +1,11 @@
 require 'phashion'
 
-require_relative 'captcha'
+require_relative 'canvas'
 
-class Faucet::Captcha::Image < Faucet::Captcha::Captcha
+class Faucet::Captcha::Image < Faucet::Captcha::Canvas
   Pattern = Struct.new(:phash, :width, :height)
 
-  PATTERNS_PATH = File.absolute_path(File.join(File.dirname(__FILE__), '..', '..', '..', 'var', 'captchas')).freeze
+  VAR_PATH = File.absolute_path(File.join(File.dirname(__FILE__), '..', '..', '..', 'var')).freeze
 
   def solve(element)
     return false unless element.tag_name == 'img'
@@ -37,7 +37,7 @@ class Faucet::Captcha::Image < Faucet::Captcha::Captcha
 
   def pattern
     return @pattern if @pattern
-    path = File.join(PATTERNS_PATH, 'classic_pattern.png')
+    path = File.join(VAR_PATH, 'image_captcha_pattern.png')
     image = ChunkyPNG::Image.from_file(path)
     @pattern = Pattern.new(Phashion.image_hash_for(path), image.width, image.height)
     logger.debug { 'Image captcha pattern initialized.' }

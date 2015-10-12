@@ -24,6 +24,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'chunky_png'
   spec.add_runtime_dependency 'phashion'
   spec.add_runtime_dependency 'tesseract-ocr'
+  spec.add_runtime_dependency 'two_captcha'
 
   spec.add_development_dependency 'bundler', '~> 1.3'
   spec.add_development_dependency 'pry', '~> 0.10'
