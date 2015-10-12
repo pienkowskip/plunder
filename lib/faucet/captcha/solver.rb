@@ -34,7 +34,7 @@ class Faucet
           answer = solver.solve(captcha)
           if answer
             solved_by = solver
-            logger.debug { 'Captcha solved. Used solve: %s.' % solver.class.name }
+            logger.debug { 'Captcha solved. Used solver: %s.' % solver.class.name }
             break
           end
         end
@@ -42,9 +42,26 @@ class Faucet
           logger.debug { 'Captcha type not recognized.' }
           raise Faucet::UnsolvableCaptchaError, 'cannot recognize captcha type'
         end
-        #TODO: Pass answer and submit.
-        #TODO: Feedback solver with success/failure.
-        answer
+        webdriver.find_element(id: 'adcopy_response').send_keys(answer, :return)
+        if result_visible?('BodyPlaceholder_SuccessfulClaimPanel')
+          logger.info { 'Captcha properly solved. Answer accepted.' }
+          # solved_by.answer_accepted
+          return true
+        end
+        if result_visible?('BodyPlaceholder_FailedClaimPanel')
+          logger.warn { 'Captcha improperly solved. Answer rejected.' }
+          # solved_by.answer_rejected
+          return false # A moze wyjatek?
+        end
+        raise Selenium::WebDriver::Error::NoSuchElementError, 'captcha correctness (visible) element not found'
+      end
+
+      private
+
+      def result_visible?(id)
+        webdriver.find_element(id: id).displayed?
+      rescue Selenium::WebDriver::Error::NoSuchElementError
+        return false
       end
     end
   end
