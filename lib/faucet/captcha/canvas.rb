@@ -25,7 +25,6 @@ class Faucet::Captcha::Canvas < Faucet::Captcha::Base
       size = 0.98 * BIG_CAPTCHA_SIZE.to_f
       new_width = size / (1.0 + image.height.to_f / image.width.to_f)
       image = image.resample_bilinear(new_width.round, (size - new_width).round)
-      image.save('resampled_captcha-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S'))
     end
     result = dm.two_captcha_client.decode(raw: image.to_blob)
     result.text

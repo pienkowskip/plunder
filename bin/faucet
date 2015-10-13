@@ -9,8 +9,8 @@ begin
   app.claim('http://moonbit.co.in/', '1KFHezCg1LPRsShhgVNFbq1BSxnERRvDom')
   app.claim('http://moonliteco.in/', '33GvD58R2m6h81eg9Jai6MHGR2e3jcQiSR')
 rescue => exc
-  app.webdriver.save_screenshot('error_screenshot-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S'))
   app.logger.fatal { "Uncaught exception: #{exc.message} (#{exc.class})." }
+  app.dm.webdriver.save_screenshot('error_screenshot-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S')) if app.dm.webdriver?
   raise
 ensure
   app.shutdown

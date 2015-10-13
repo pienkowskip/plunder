@@ -29,14 +29,14 @@ class Faucet::Captcha::Sponsored < Faucet::Captcha::Base
     dm.webdriver.find_element(id: 'playInstr')
     dm.webdriver.find_element(id: 'playBtn')
     image = dm.webdriver.find_element(id: 'overlay').css_value('background-image')
-    raise Faucet::UnsolvableCaptchaError 'sponsored captcha code element is not embedded PNG' unless image.start_with?(EMBEDDED_PNG_PREFIX) && image.end_with?(EMBEDDED_PNG_SUFFIX)
+    raise Faucet::UnsolvableCaptchaError, 'sponsored captcha code element is not embedded PNG' unless image.start_with?(EMBEDDED_PNG_PREFIX) && image.end_with?(EMBEDDED_PNG_SUFFIX)
     image = Base64.decode64(image.slice(EMBEDDED_PNG_PREFIX.length..(-EMBEDDED_PNG_SUFFIX.length - 1)))
     text = ocr_engine.text_for(image).strip
     logger.debug { 'Sponsored captcha code solved via OCR: "%s".' % text }
     PROPER_PREFIXES.each do |prefix|
       return text.slice(prefix.length..-1).strip if text.start_with?(prefix)
     end
-    raise Faucet::UnsolvableCaptchaError 'sponsored captcha code has invalid prefix'
+    raise Faucet::UnsolvableCaptchaError, 'sponsored captcha code has invalid prefix'
   rescue Selenium::WebDriver::Error::NoSuchElementError
     return false
   ensure
