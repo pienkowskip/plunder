@@ -17,8 +17,7 @@ class Faucet::Captcha::Image < Faucet::Captcha::Canvas
       image.crop!(3, 3, image.width - 2 * 3, image.height - 2 * 3)
       logger.warn { 'Captcha image has unknown pattern. Trying to solve anyway.' }
     end
-    image.save('image_captcha-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S')) #TODO: Solve (downsize & send to API) instead of saving.
-    true
+    solve_image(image)
   end
 
   private
@@ -44,8 +43,5 @@ class Faucet::Captcha::Image < Faucet::Captcha::Canvas
     @pattern
   end
 
-  # 400 = a + b
-  # a/300 = b/150 => a*150/300 = b
-  # 400 = a(1 + 150/300)
-  # a = 400 / 1.5
+
 end

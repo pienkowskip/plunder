@@ -31,9 +31,7 @@ class Faucet::Captcha::Sponsored < Faucet::Captcha::Base
     image = dm.webdriver.find_element(id: 'overlay').css_value('background-image')
     raise Faucet::UnsolvableCaptchaError 'sponsored captcha code element is not embedded PNG' unless image.start_with?(EMBEDDED_PNG_PREFIX) && image.end_with?(EMBEDDED_PNG_SUFFIX)
     image = Base64.decode64(image.slice(EMBEDDED_PNG_PREFIX.length..(-EMBEDDED_PNG_SUFFIX.length - 1)))
-    image = ChunkyPNG::Image.from_blob(image)
-    image.save('sponsored_captcha-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S'))
-    text = ocr_engine.text_for(image).strip #OPTIMIZE: You can pass just string from decoded background-image.
+    text = ocr_engine.text_for(image).strip
     logger.debug { 'Sponsored captcha code solved via OCR: "%s".' % text }
     PROPER_PREFIXES.each do |prefix|
       return text.slice(prefix.length..-1).strip if text.start_with?(prefix)

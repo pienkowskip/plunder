@@ -12,13 +12,12 @@ class Faucet
   CAPTCHA_LOAD_DELAY = 5
   CAPTCHA_SOLVER_RETRIES = 3
 
-  attr_reader :dm, :url, :address
+  attr_reader :dm
 
-  def initialize(config_filename, url, address)
+  def initialize(config_filename)
     @dm = DependencyManager.new
     @dm.faucet = self
     @dm.config = Config.new(config_filename).freeze
-    @url, @address = url.to_s.dup.freeze, address.to_s.dup.freeze
   end
 
   def setup_webdriver
@@ -36,14 +35,14 @@ class Faucet
     dm.webdriver
   end
 
-  def signed_in?
+  def signed_in? #TODO: Recognize address.
     dm.webdriver.find_element(:id, 'BodyPlaceholder_ClaimPanel')
     true
   rescue Selenium::WebDriver::Error::NoSuchElementError
     false
   end
 
-  def sign_in
+  def sign_in(address)
     sign_in_button = dm.webdriver.find_element(:id, 'SignInButton')
     raise Selenium::WebDriver::Error::ElementNotVisibleError, 'sign in button not visible' unless sign_in_button.displayed?
     address_input = dm.webdriver.find_element(:id, 'BodyPlaceholder_PaymentAddressTextbox')
@@ -65,9 +64,10 @@ class Faucet
     false
   end
 
-  def claim
+  def claim(url, address)
     dm.webdriver.navigate.to(url)
-    sign_in unless signed_in?
+    logger.debug { 'Claim URL [%s] loaded.' % url }
+    sign_in(address) unless signed_in?
     dm.webdriver.find_element(id: 'SubmitButton').click
     solve_captcha
     #TODO: Read result and print log.
