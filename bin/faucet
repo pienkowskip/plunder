@@ -1,21 +1,17 @@
 #!/usr/bin/env ruby
 
 require 'faucet'
-# require 'pry'
 
-app = Faucet.new('../configs/test.yml')
+app = Faucet.new('../configs/ovh.yml')
 begin
   app.setup_browser
-
-  # app.browser.visit('https://www.whatismyip.com/what-my-ip-says-about-me/')
-  # app.browser.save_screenshot('whatismyip.png', full: true)
-
+  app.claim('http://moondoge.co.in/', '9rowG76piqa9b4PsrgEtuMz8eqoxk1NH5M')
   app.claim('http://moonliteco.in/', 'LfgBFMbZWmQrK54HRzxftPKWuqWm2jDZad')
   app.claim('http://moonbit.co.in/', '3Mwcxhog8gVUu7Wk5U9pAgxeauuW9YkYtY')
 rescue => exc
   app.logger.fatal { "Uncaught exception: #{exc.message} (#{exc.class})." }
   time = Time.new.strftime('%Y%m%dT%H%M%S')
-  app.browser.save_screenshot('error_screenshot-%s.png' % time, full: true) if app.browser?
-  File.write('error_html-%s.html' % time, app.browser.html)
+  app.browser.save_screenshot('error_log/%s.png' % time, full: true) if app.browser?
+  File.write('error_log/%s.html' % time, app.browser.html)
   raise
 end

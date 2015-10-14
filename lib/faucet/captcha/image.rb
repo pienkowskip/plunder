@@ -1,11 +1,19 @@
 require 'phashion'
 
-require_relative 'canvas'
+require_relative 'base'
+require_relative 'imageable'
 
-class Faucet::Captcha::Image < Faucet::Captcha::Canvas
+class Faucet::Captcha::Image < Faucet::Captcha::Base
+  include Faucet::Captcha::Imageable
+
   Pattern = Struct.new(:phash, :width, :height)
 
   VAR_PATH = File.absolute_path(File.join(File.dirname(__FILE__), '..', '..', '..', 'var')).freeze
+
+  def initialize(dm)
+    super
+    imageable_initialize(dm)
+  end
 
   def solve(element)
     return false unless element.tag_name == 'img'

@@ -12,6 +12,8 @@ class Faucet
       include Faucet::Utility::Logging
       extend Forwardable
 
+      IMAGE_CAPTCHA_REFRESHES = 3
+
       attr_reader :dm, :solvers
       def_delegators :@dm, :browser
 
@@ -25,7 +27,15 @@ class Faucet
       end
 
       def solve
-        captcha = browser.find(:id, 'CaptchaPopup').find(:id, 'adcopy-puzzle-image-image')
+        popup = browser.find(:id, 'CaptchaPopup')
+        captcha = popup.find(:id, 'adcopy-puzzle-image-image')
+        IMAGE_CAPTCHA_REFRESHES.times do
+          break unless captcha.tag_name == 'img'
+          logger.debug { 'Provided captcha is an image. Refreshing.' }
+          popup.find(:id, 'adcopy-link-refresh').click
+          dm.sleep_rand(1.0..3.0)
+          captcha = popup.find(:id, 'adcopy-puzzle-image-image')
+        end
         answer = nil
         solved_by = nil
         @solvers.each do |solver|
@@ -41,6 +51,7 @@ class Faucet
           raise Faucet::UnsolvableCaptchaError, 'cannot recognize captcha type'
         end
         browser.find(:id, 'adcopy_response').send_keys(answer, :Enter)
+        dm.sleep_rand(1.0..3.0)
         if has_result?('BodyPlaceholder_SuccessfulClaimPanel')
           logger.info { 'Captcha properly solved. Answer [%s] accepted.' % answer }
           # solved_by.answer_accepted

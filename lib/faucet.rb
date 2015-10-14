@@ -10,7 +10,6 @@ class Faucet
   include Utility::Logging
   extend Forwardable
 
-  CAPTCHA_LOAD_DELAY = 5
   CAPTCHA_SOLVER_RETRIES = 3
 
   attr_reader :dm
@@ -28,7 +27,7 @@ class Faucet
     case browser_cfg.fetch(:webdriver).to_sym
       when :poltergeist
         options = {
-            window_size: [1200, 1800],
+            window_size: [1280, 1024], #SXGA
             js_errors: false,
             phantomjs_logger: File.open('/dev/null', 'a'),
             phantomjs_options: [],
@@ -78,15 +77,17 @@ class Faucet
       logger.debug { 'Not signed in as address [%s].' % address }
       sign_in(address)
     end
+    dm.sleep_rand(1.0..3.0)
     browser.find(:id, 'SubmitButton').click
-    logger.debug { 'Starting submission of claim for [%s].' % address }
+    logger.debug { 'Beginning to perform claim for [%s].' % address }
     solve_captcha
+    # browser.save_screenshot('claim-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S'), full: true)
     # TODO: Read result and print log.
     true
   end
 
   def solve_captcha
-    sleep CAPTCHA_LOAD_DELAY
+    dm.sleep_rand(4.0..6.0)
     dm.captcha_solver.solve
     # webdriver.find_element(id: 'adcopy-link-refresh')
   end

@@ -15,7 +15,10 @@ class Faucet::DependencyManager
         rescue KeyError
           raise Faucet::ConfigEntryError, 'configuration of 2captcha.com API authentication invalid'
         end
-        TwoCaptcha.new(api_key, timeout: 90)
+        TwoCaptcha.new(api_key, timeout: 120)
+      end,
+      prng: ->(_) do
+        Random.new
       end
   }.freeze
 
@@ -38,4 +41,7 @@ class Faucet::DependencyManager
     define_method(:"#{dependency}?") { !instance_variable_get(dependency_var).nil? }
   end
 
+  def sleep_rand(*args)
+    sleep prng.rand(*args)
+  end
 end
