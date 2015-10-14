@@ -5,13 +5,17 @@ require 'faucet'
 
 app = Faucet.new('../configs/test.yml')
 begin
-  app.setup_webdriver
-  app.claim('http://moonbit.co.in/', '1KFHezCg1LPRsShhgVNFbq1BSxnERRvDom')
-  app.claim('http://moonliteco.in/', '33GvD58R2m6h81eg9Jai6MHGR2e3jcQiSR')
+  app.setup_browser
+
+  # app.browser.visit('https://www.whatismyip.com/what-my-ip-says-about-me/')
+  # app.browser.save_screenshot('whatismyip.png', full: true)
+
+  app.claim('http://moonliteco.in/', 'LfgBFMbZWmQrK54HRzxftPKWuqWm2jDZad')
+  app.claim('http://moonbit.co.in/', '3Mwcxhog8gVUu7Wk5U9pAgxeauuW9YkYtY')
 rescue => exc
   app.logger.fatal { "Uncaught exception: #{exc.message} (#{exc.class})." }
-  app.dm.webdriver.save_screenshot('error_screenshot-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S')) if app.dm.webdriver?
+  time = Time.new.strftime('%Y%m%dT%H%M%S')
+  app.browser.save_screenshot('error_screenshot-%s.png' % time, full: true) if app.browser?
+  File.write('error_html-%s.html' % time, app.browser.html)
   raise
-ensure
-  app.shutdown
 end

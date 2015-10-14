@@ -7,7 +7,7 @@ class Faucet::DependencyManager
   DEPENDENCIES = {
       faucet: nil,
       config: nil,
-      webdriver: nil,
+      browser: nil,
       captcha_solver: ->(dm) { Faucet::Captcha::Solver.new(dm) },
       two_captcha_client: ->(dm) do
         api_key = begin
@@ -15,7 +15,7 @@ class Faucet::DependencyManager
         rescue KeyError
           raise Faucet::ConfigEntryError, 'configuration of 2captcha.com API authentication invalid'
         end
-        TwoCaptcha.new(api_key)
+        TwoCaptcha.new(api_key, timeout: 90)
       end
   }.freeze
 

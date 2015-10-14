@@ -9,8 +9,8 @@ class Faucet::Captcha::Image < Faucet::Captcha::Canvas
 
   def solve(element)
     return false unless element.tag_name == 'img'
-    image = element_screenshot(element)
-    logger.debug { 'Captcha recognized as image captcha. Starting solving.' }
+    logger.debug { 'Captcha recognized as image. Starting solving.' }
+    image = element_render(element)
     if recognize(image)
       image.crop!(5, pattern.height + 3, image.width - 2 * 5, image.height - 5 - pattern.height - 3)
     else
@@ -42,6 +42,4 @@ class Faucet::Captcha::Image < Faucet::Captcha::Canvas
     logger.debug { 'Image captcha pattern initialized.' }
     @pattern
   end
-
-
 end

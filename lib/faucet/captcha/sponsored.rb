@@ -1,9 +1,8 @@
 # coding: utf-8
-require 'base64'
 require 'tesseract'
+require 'base64'
 
 require_relative 'base'
-require_relative '../exceptions'
 
 class Faucet::Captcha::Sponsored < Faucet::Captcha::Base
   EMBEDDED_PNG_PREFIX = 'url(data:image/png;base64,'.freeze
@@ -24,22 +23,23 @@ class Faucet::Captcha::Sponsored < Faucet::Captcha::Base
   end
 
   def solve(element)
-    frame = element.find_element(xpath: './iframe')
-    dm.webdriver.switch_to.frame(frame)
-    dm.webdriver.find_element(id: 'playInstr')
-    dm.webdriver.find_element(id: 'playBtn')
-    image = dm.webdriver.find_element(id: 'overlay').css_value('background-image')
-    raise Faucet::UnsolvableCaptchaError, 'sponsored captcha code element is not embedded PNG' unless image.start_with?(EMBEDDED_PNG_PREFIX) && image.end_with?(EMBEDDED_PNG_SUFFIX)
-    image = Base64.decode64(image.slice(EMBEDDED_PNG_PREFIX.length..(-EMBEDDED_PNG_SUFFIX.length - 1)))
+    frame = element.find(:xpath, './iframe')
+    image = browser.within_frame(frame) do
+      browser.find(:id, 'playInstr')
+      browser.find(:id, 'playBtn')
+      browser.find(:id, 'overlay', visible: false)
+      logger.debug { 'Captcha recognized as sponsored code. Starting solving.' }
+      bg_image = browser.evaluate_script('window.getComputedStyle(document.querySelector(\'#overlay\')).backgroundImage').to_s
+      raise Faucet::UnsolvableCaptchaError, 'sponsored captcha code element is not embedded PNG' unless bg_image.start_with?(EMBEDDED_PNG_PREFIX) && bg_image.end_with?(EMBEDDED_PNG_SUFFIX)
+      Base64.decode64(bg_image.slice(EMBEDDED_PNG_PREFIX.length..(-EMBEDDED_PNG_SUFFIX.length - 1)))
+    end
     text = ocr_engine.text_for(image).strip
-    logger.debug { 'Sponsored captcha code solved via OCR: "%s".' % text }
+    logger.debug { 'Sponsored captcha code text [%s] from OCR.' % text }
     PROPER_PREFIXES.each do |prefix|
       return text.slice(prefix.length..-1).strip if text.start_with?(prefix)
     end
     raise Faucet::UnsolvableCaptchaError, 'sponsored captcha code has invalid prefix'
-  rescue Selenium::WebDriver::Error::NoSuchElementError
+  rescue Capybara::ElementNotFound
     return false
-  ensure
-    dm.webdriver.switch_to.default_content
   end
 end

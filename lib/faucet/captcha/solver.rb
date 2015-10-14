@@ -1,5 +1,4 @@
 require 'chunky_png'
-require 'selenium-webdriver'
 
 require_relative 'sponsored'
 require_relative 'canvas'
@@ -11,8 +10,10 @@ class Faucet
   module Captcha
     class Solver
       include Faucet::Utility::Logging
+      extend Forwardable
 
       attr_reader :dm, :solvers
+      def_delegators :@dm, :browser
 
       def initialize(dm)
         @dm = dm
@@ -24,17 +25,14 @@ class Faucet
       end
 
       def solve
-        popup = dm.webdriver.find_element(id: 'CaptchaPopup')
-        raise Selenium::WebDriver::Error::ElementNotVisibleError, 'captcha popup not visible' unless popup.displayed?
-        captcha = popup.find_element(id: 'adcopy-puzzle-image-image')
-        raise Selenium::WebDriver::Error::ElementNotVisibleError, 'captcha element not visible' unless captcha.displayed?
+        captcha = browser.find(:id, 'CaptchaPopup').find(:id, 'adcopy-puzzle-image-image')
         answer = nil
         solved_by = nil
         @solvers.each do |solver|
           answer = solver.solve(captcha)
           if answer
             solved_by = solver
-            logger.debug { 'Captcha solved. Used solver: %s.' % solver.class.name }
+            logger.debug { 'Captcha solved by [%s] solver.' % solved_by.class.name }
             break
           end
         end
@@ -42,25 +40,25 @@ class Faucet
           logger.debug { 'Captcha type not recognized.' }
           raise Faucet::UnsolvableCaptchaError, 'cannot recognize captcha type'
         end
-        dm.webdriver.find_element(id: 'adcopy_response').send_keys(answer, :return)
-        if result_visible?('BodyPlaceholder_SuccessfulClaimPanel')
-          logger.info { 'Captcha properly solved. Answer accepted.' }
+        browser.find(:id, 'adcopy_response').send_keys(answer, :Enter)
+        if has_result?('BodyPlaceholder_SuccessfulClaimPanel')
+          logger.info { 'Captcha properly solved. Answer [%s] accepted.' % answer }
           # solved_by.answer_accepted
           return true
         end
-        if result_visible?('BodyPlaceholder_FailedClaimPanel')
-          logger.warn { 'Captcha improperly solved. Answer rejected.' }
+        if has_result?('BodyPlaceholder_FailedClaimPanel')
+          logger.warn { 'Captcha improperly solved. Answer [%s] rejected.' % answer }
           # solved_by.answer_rejected
           return false # A moze wyjatek?
         end
-        raise Selenium::WebDriver::Error::NoSuchElementError, 'captcha correctness (visible) element not found'
+        raise Capybara::ElementNotFound, 'unable to find captcha correctness element'
       end
 
       private
 
-      def result_visible?(id)
-        dm.webdriver.find_element(id: id).displayed?
-      rescue Selenium::WebDriver::Error::NoSuchElementError
+      def has_result?(id)
+        browser.find(:id, id)
+      rescue Capybara::ElementNotFound
         return false
       end
     end
