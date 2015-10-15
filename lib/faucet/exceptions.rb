@@ -21,4 +21,7 @@ class Faucet
 
   class ClaimingError < StandardError
   end
+
+  class AfterClaimingError < ClaimingError
+  end
 end

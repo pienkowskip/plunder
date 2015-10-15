@@ -5,10 +5,24 @@ require_relative 'faucet/version'
 require_relative 'faucet/dependency_manager'
 require_relative 'faucet/config'
 require_relative 'faucet/utility/logging'
+require_relative 'bigdecimal_ext'
 
 class Faucet
   include Utility::Logging
   extend Forwardable
+
+  ClaimResult = Struct.new(:amount, :unit, :what) do
+    PATTERN = /\A([0-9]+(?:\.[0-9]+)?)\ (?:(%)\ )?(.+)\ more\ info\z/.freeze
+
+    def initialize(string, default_unit)
+      md = PATTERN.match(string)
+      raise ArgumentError unless md
+      self.amount = md[1].to_d
+      self.unit = md[2].nil? ? default_unit : md[2]
+      self.what = md[3]
+      self.amount = self.amount.no_frac_to_i
+    end
+  end
 
   CAPTCHA_SOLVER_RETRIES = 3
 
@@ -81,14 +95,32 @@ class Faucet
     browser.find(:id, 'SubmitButton').click
     logger.debug { 'Beginning to perform claim for [%s].' % address }
     solve_captcha
-    # browser.save_screenshot('claim-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S'), full: true)
-    # TODO: Read result and print log.
+    grab_claim_results(address)
     true
   end
 
+  private
+
   def solve_captcha
     dm.sleep_rand(4.0..6.0)
-    dm.captcha_solver.solve
-    # webdriver.find_element(id: 'adcopy-link-refresh')
+    dm.captcha_solver.solve #TODO: Referesh & retry on error.
+  end
+
+  def grab_claim_results(address)
+    md = /\Abalance:\ ([0-9]+(?:\.[0-9]+)?)\ (.+)\z/.match(browser.find(:id, 'AccountBalanceLabel')[:title])
+    raise AfterClaimingError, 'cannot read account balance' unless md
+    balance, unit = md[1].to_d, md[2]
+    claim_results = browser.find_all(:css, '#BodyPlaceholder_SuccessfulClaimPanel .success-message-panel').map(&:text)
+    raise AfterClaimingError, 'invalid claim results' unless claim_results.size == 4
+    claim_results.map! { |cr| ClaimResult.new(cr, unit) }
+    raise AfterClaimingError, 'invalid claim results' unless claim_results[0].unit == unit && claim_results.last(3).all? { |cr| cr.unit == '%' }
+    claimed = claim_results[0].amount
+    bonus = claim_results.last(3).map(&:amount).reduce(:+)
+    granted = (claimed * (100.to_d + bonus.to_d) / 100.to_d).no_frac_to_i
+    claimed, bonus, granted = [claimed, bonus, granted].map { |n| (n.is_a?(Fixnum) ? '%d' : '%.2f') % n }
+    logger.info { 'Successful claim. [%s %s] claimed + [%s %%] bonuses = [%s %s] granted to address [%s].' %
+        [claimed, unit, bonus, granted, unit, address] }
+  rescue Capybara::ElementNotFound
+    raise AfterClaimingError, 'cannot grab claim result because some element not found'
   end
 end

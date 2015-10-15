@@ -17,7 +17,7 @@ Gem::Specification.new do |spec|
   spec.license       = 'MIT'
 
   spec.files         = `git ls-files`.split($/)
-  spec.executables   = ['faucet']
+  spec.executables   = []
   spec.require_paths = ['lib', 'var']
 
   spec.add_runtime_dependency 'chunky_png'
