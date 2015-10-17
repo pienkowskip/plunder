@@ -1,5 +1,6 @@
 require 'chunky_png'
 require 'base64'
+require 'cgi'
 
 require_relative '../utility/logging'
 require_relative '../exceptions'
@@ -35,6 +36,7 @@ class Faucet
           logger.warn { 'Captcha solving external service [2captcha.com] returned error.' }
           raise Faucet::UnsolvableCaptchaError, 'captcha solving external service error'
         end
+        text = CGI.unescapeHTML(text)
         logger.debug { 'Captcha text [%s] received from external service [2captcha.com].' %  text }
         text
       end

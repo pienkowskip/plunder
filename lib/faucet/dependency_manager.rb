@@ -27,7 +27,7 @@ class Faucet::DependencyManager
     if constructor.nil?
       define_method(dependency) do
         var = instance_variable_get(dependency_var)
-        raise Faucet::DependencyError, "dependency #{dependency} is not set" if var.nil?
+        raise Faucet::DependencyError, "dependency '#{dependency}' is not set" if var.nil?
         var
       end
       define_method(:"#{dependency}=") { |value| instance_variable_set(dependency_var, value) }

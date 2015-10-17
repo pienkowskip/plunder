@@ -1,10 +1,12 @@
 require 'chunky_png'
+require 'timeout'
 
 require_relative 'sponsored'
 require_relative 'canvas'
 require_relative 'image'
 require_relative '../utility/logging'
 require_relative '../exceptions'
+require_relative '../../kernel'
 
 class Faucet
   module Captcha
@@ -50,8 +52,13 @@ class Faucet
           logger.debug { 'Captcha type not recognized.' }
           raise Faucet::UnsolvableCaptchaError, 'cannot recognize captcha type'
         end
+        logger.debug { 'Submitting captcha answer [%s].' % answer }
         browser.find(:id, 'adcopy_response').send_keys(answer, :Enter)
-        dm.sleep_rand(1.0..3.0)
+        inline_rescue(Timeout::Error) do
+          Timeout.timeout(dm.config.browser.fetch(:timeout, 30) / 3.0) do
+            nil until has_result?('BodyPlaceholder_SuccessfulClaimPanel') || has_result?('BodyPlaceholder_FailedClaimPanel')
+          end
+        end
         if has_result?('BodyPlaceholder_SuccessfulClaimPanel')
           logger.info { 'Captcha properly solved. Answer [%s] accepted.' % answer }
           # solved_by.answer_accepted
@@ -60,9 +67,10 @@ class Faucet
         if has_result?('BodyPlaceholder_FailedClaimPanel')
           logger.warn { 'Captcha improperly solved. Answer [%s] rejected.' % answer }
           # solved_by.answer_rejected
+          #TODO: Save captcha image when rejected.
           return false # A moze wyjatek?
         end
-        raise Capybara::ElementNotFound, 'unable to find captcha correctness element'
+        raise Capybara::ElementNotFound, 'unable to find answer correctness element'
       end
 
       private
