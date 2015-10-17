@@ -9,9 +9,22 @@ begin
   app.claim('http://moonliteco.in/', 'LfgBFMbZWmQrK54HRzxftPKWuqWm2jDZad')
   app.claim('http://moonbit.co.in/', '3Mwcxhog8gVUu7Wk5U9pAgxeauuW9YkYtY')
 rescue => exc
-  app.logger.fatal { "Uncaught exception: #{exc.message} (#{exc.class})." }
-  time = Time.new.strftime('%Y%m%dT%H%M%S')
-  app.browser.save_screenshot('error_log/%s.png' % time, full: true) if app.browser?
-  File.write('error_log/%s.html' % time, app.browser.html)
-  raise
+  begin
+    app.logger.fatal { "Uncaught exception: #{exc.message} (#{exc.class})." }
+    if app.dm.config.application[:error_log]
+      time = Time.new
+      time_str = time.strftime('%Y%m%dT%H%M%S')
+      File.open(File.join(app.dm.config.application[:error_log], '%s.txt' % time_str), 'a') do |io|
+        io.puts("Application crash at #{time}.", nil)
+        io.puts("Uncaught exception: #{exc.message} (#{exc.class}).", nil)
+        io.puts('Backtrace:', exc.backtrace)
+      end
+      if app.browser?
+        app.browser.save_screenshot(File.join(app.dm.config.application[:error_log], '%s.png' % time_str), full: true)
+        File.write(File.join(app.dm.config.application[:error_log], '%s.html' % time_str), app.browser.html)
+      end
+    end
+  ensure
+    raise exc
+  end
 end

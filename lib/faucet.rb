@@ -38,6 +38,7 @@ class Faucet
   def setup_browser
     browser_cfg = dm.config.browser
     Capybara.ignore_hidden_elements = true
+    # Capybara.default_max_wait_time = 3
     case browser_cfg.fetch(:webdriver).to_sym
       when :poltergeist
         options = {

@@ -38,6 +38,7 @@ class Faucet
           dm.sleep_rand(1.0..3.0)
           captcha = popup.find(:id, 'adcopy-puzzle-image-image')
         end
+        captcha_image_blob = Base64.decode64(browser.driver.render_base64(:png, selector: '#adcopy-puzzle-image-image'))
         answer = nil
         solved_by = nil
         @solvers.each do |solver|
@@ -67,7 +68,8 @@ class Faucet
         if has_result?('BodyPlaceholder_FailedClaimPanel')
           logger.warn { 'Captcha improperly solved. Answer [%s] rejected.' % answer }
           # solved_by.answer_rejected
-          #TODO: Save captcha image when rejected.
+          File.write(File.join(dm.config.application[:error_log], 'catcha-rejected_answer-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S')),
+                     captcha_image_blob) if dm.config.application[:error_log]
           return false # A moze wyjatek?
         end
         raise Capybara::ElementNotFound, 'unable to find answer correctness element'
