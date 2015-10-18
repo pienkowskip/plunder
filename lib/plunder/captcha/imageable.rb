@@ -5,10 +5,10 @@ require 'cgi'
 require_relative '../utility/logging'
 require_relative '../exceptions'
 
-class Faucet
+class Plunder
   module Captcha
     module Imageable
-      include Faucet::Utility::Logging
+      include Plunder::Utility::Logging
 
       BIG_CAPTCHA_SIZE = 400
 
@@ -27,7 +27,7 @@ class Faucet
       end
 
       def element_render(element)
-        raise Faucet::UnsolvableCaptchaError, 'cannot create render of element without id' unless element[:id] && !element[:id].to_s.empty?
+        raise Plunder::CaptchaError, 'cannot create render of element without id' unless element[:id] && !element[:id].to_s.empty?
         base64 = element.session.driver.render_base64(:png, selector: "\##{element[:id]}")
         ChunkyPNG::Image.from_blob(Base64.decode64(base64))
       end
@@ -45,7 +45,7 @@ class Faucet
         text = CGI.unescapeHTML(text).strip unless text.nil?
         if text.nil? || text.empty? || !captcha.id
           logger.warn { 'Captcha solving external service [2captcha.com] returned error.' }
-          raise Faucet::UnsolvableCaptchaError, 'captcha solving external service error'
+          raise Plunder::CaptchaError, 'captcha solving external service error'
         end
         @last_captcha_id = captcha.id
         logger.debug { 'Captcha text [%s] received from external service [2captcha.com].' %  text }

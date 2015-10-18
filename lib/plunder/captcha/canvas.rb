@@ -1,8 +1,8 @@
 require_relative 'base'
 require_relative 'imageable'
 
-class Faucet::Captcha::Canvas < Faucet::Captcha::Base
-  include Faucet::Captcha::Imageable
+class Plunder::Captcha::Canvas < Plunder::Captcha::Base
+  include Plunder::Captcha::Imageable
 
   def initialize(dm)
     super

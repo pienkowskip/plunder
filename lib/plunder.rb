@@ -1,18 +1,18 @@
 require 'capybara/poltergeist'
 require 'chunky_png'
 
-require_relative 'faucet/version'
-require_relative 'faucet/dependency_manager'
-require_relative 'faucet/config'
-require_relative 'faucet/utility/logging'
+require_relative 'plunder/version'
+require_relative 'plunder/dependency_manager'
+require_relative 'plunder/config'
+require_relative 'plunder/utility/logging'
 require_relative 'bigdecimal_ext'
 
-class Faucet
+class Plunder
   include Utility::Logging
   extend Forwardable
 
   ClaimResult = Struct.new(:amount, :unit, :what) do
-    PATTERN = /\A([0-9]+(?:\.[0-9]+)?)\ (?:(%)\ )?(.+)\ more\ info\z/.freeze
+    PATTERN = /\A([0-9]+(?:\.[0-9]+)?)\ (?:(%)\ )?(.+)\ more\ info\z/.freeze #TODO: Get fractional part length from regex.
 
     def initialize(string, default_unit)
       md = PATTERN.match(string)
@@ -31,7 +31,7 @@ class Faucet
 
   def initialize(config_filename)
     @dm = DependencyManager.new
-    @dm.faucet = self
+    @dm.plunder = self
     @dm.config = Config.new(config_filename).freeze
   end
 
@@ -79,7 +79,7 @@ class Faucet
     browser.visit(browser.current_url)
     unless signed_in?(address)
       logger.warn { 'Signing in as address [%s] failure. Unknown reason.' % address }
-      raise Faucet::SigningInError, 'signing in failure'
+      raise Plunder::SigningInError, 'signing in failure'
     end
     logger.info { 'Signing in as address [%s] success.' % address }
     true
@@ -92,7 +92,7 @@ class Faucet
       logger.debug { 'Not signed in as address [%s].' % address }
       sign_in(address)
     end
-    dm.sleep_rand(1.0..3.0)
+    dm.sleep_rand(2.0..4.0)
     browser.find(:id, 'SubmitButton').click
     logger.debug { 'Beginning to perform claim for [%s].' % address }
     solve_captcha

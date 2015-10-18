@@ -3,8 +3,8 @@ require 'phashion'
 require_relative 'base'
 require_relative 'imageable'
 
-class Faucet::Captcha::Image < Faucet::Captcha::Base
-  include Faucet::Captcha::Imageable
+class Plunder::Captcha::Image < Plunder::Captcha::Base
+  include Plunder::Captcha::Imageable
 
   Pattern = Struct.new(:phash, :width, :height)
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env ruby
 
-require 'faucet'
+require 'plunder'
 
 begin
-  app = Faucet.new('../configs/ovh.yml')
+  app = Plunder.new('../configs/ovh.yml')
   app.setup_browser
   app.claim('http://moondoge.co.in/', '9rowG76piqa9b4PsrgEtuMz8eqoxk1NH5M')
   app.claim('http://moonliteco.in/', 'LfgBFMbZWmQrK54HRzxftPKWuqWm2jDZad')

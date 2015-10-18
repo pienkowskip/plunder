@@ -1,10 +1,10 @@
 require_relative '../utility/logging'
 require_relative '../exceptions'
 
-class Faucet
+class Plunder
   module Captcha
     class Base
-      include Faucet::Utility::Logging
+      include Plunder::Utility::Logging
       extend Forwardable
 
       attr_reader :dm

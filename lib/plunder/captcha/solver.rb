@@ -8,10 +8,10 @@ require_relative '../utility/logging'
 require_relative '../exceptions'
 require_relative '../../kernel'
 
-class Faucet
+class Plunder
   module Captcha
     class Solver
-      include Faucet::Utility::Logging
+      include Plunder::Utility::Logging
       extend Forwardable
 
       IMAGE_CAPTCHA_REFRESHES = 3
@@ -22,9 +22,9 @@ class Faucet
       def initialize(dm)
         @dm = dm
         @solvers = [
-            Faucet::Captcha::Sponsored.new(dm),
-            Faucet::Captcha::Canvas.new(dm),
-            Faucet::Captcha::Image.new(dm)
+            Plunder::Captcha::Sponsored.new(dm),
+            Plunder::Captcha::Canvas.new(dm),
+            Plunder::Captcha::Image.new(dm)
         ]
       end
 
@@ -51,7 +51,7 @@ class Faucet
         end
         unless answer
           logger.debug { 'Captcha type not recognized.' }
-          raise Faucet::UnsolvableCaptchaError, 'cannot recognize captcha type'
+          raise Plunder::CaptchaError, 'cannot recognize captcha type'
         end
         logger.debug { 'Submitting captcha answer [%s].' % answer }
         browser.find(:id, 'adcopy_response').send_keys(answer, :Enter)

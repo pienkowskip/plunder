@@ -1,7 +1,7 @@
 require 'logger'
 require_relative '../../illegal_state_error'
 
-module Faucet::Utility
+module Plunder::Utility
   module Logging
     class Timer
       SIMPLE_FORMAT = '%<msg>s (in %<time>.3fs)'.freeze
@@ -30,7 +30,7 @@ module Faucet::Utility
 
     def logger
       return @logger unless @logger.nil?
-      @logger = Faucet::Utility::Logging.logger_for(self.class.name)
+      @logger = Plunder::Utility::Logging.logger_for(self.class.name)
     end
 
     @loggers = {}

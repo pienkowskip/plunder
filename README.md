@@ -1,13 +1,13 @@
-# Faucet
+# Plunder
 
-Crypto-currency faucets bot. Uses selenium, Xvfb & external captcha solving service to headlessly claim
-crypto-currency from web faucet.
+Various online money-making bots. Uses Capybara, PhantomJS & external captcha solving service to headlessly claim
+rewards in online money-making systems.
 
 ## Installation
 
 Add this line to your application's Gemfile:
 
-    gem 'faucet'
+    gem 'plunder'
 
 And then execute:
 
@@ -15,13 +15,13 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install faucet
+    $ gem install plunder
 
 ## Usage
 
-TODO: Write usage instructions here
+TODO: Write instructions here.
 
 ## Contributing
 
-TODO: Write usage instructions here
+TODO: Write instructions here.
 

@@ -1,19 +1,19 @@
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'faucet/version'
+require 'plunder/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = 'faucet'
-  spec.version       = Faucet::VERSION.dup
+  spec.name          = 'plunder'
+  spec.version       = Plunder::VERSION.dup
   spec.authors       = ['Paweł Pieńkowski']
   spec.email         = ['pienkowskip@gmail.com']
-  spec.summary       = 'Crypto-currency faucets bot'
+  spec.summary       = 'Various online money-making bots'
   spec.description   = <<-EOF
-    Crypto-currency faucets bot. Uses selenium, Xvfb & external captcha solving service to headlessly claim
-    crypto-currency from web faucet.
+    Various online money-making bots. Uses Capybara, PhantomJS & external captcha solving service to headlessly claim
+    rewards in online money-making systems.
   EOF
-  spec.homepage      = 'https://github.com/pienkowskip/faucet'
+  spec.homepage      = 'https://github.com/pienkowskip/plunder'
   spec.license       = 'MIT'
 
   spec.files         = `git ls-files`.split($/)

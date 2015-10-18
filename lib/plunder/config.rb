@@ -2,17 +2,17 @@ require 'yaml'
 require_relative 'utility/logging'
 require_relative 'exceptions'
 
-class Faucet::Config
+class Plunder::Config
   attr_reader :application, :auth, :browser
 
   def initialize(fname)
     begin
       config = deep_symbolize_keys(YAML.load(File.open(fname, 'r')) || {})
     rescue SyntaxError
-      raise Faucet::ConfigError, 'configuration file invalid syntax'
+      raise Plunder::ConfigError, 'configuration file invalid syntax'
     end
     [:application, :auth, :browser].each do |key|
-      raise Faucet::ConfigError, "configuration file not sufficient: missing '#{key}' entry" unless config.include?(key)
+      raise Plunder::ConfigError, "configuration file not sufficient: missing '#{key}' entry" unless config.include?(key)
       instance_variable_set :"@#{key}", config[key].freeze
     end
     setup_logger
@@ -30,10 +30,10 @@ class Faucet::Config
     file = logger.fetch(:file)
     file = logdev_map[file.downcase] if logdev_map.include?(file.downcase)
     level = Logger::Severity.const_get(logger.fetch(:level).upcase.to_sym, false)
-    Faucet::Utility::Logging.setup(file, level)
+    Plunder::Utility::Logging.setup(file, level)
     true
   rescue => err
-    raise Faucet::ConfigEntryError.new('application.logger', err)
+    raise Plunder::ConfigEntryError.new('application.logger', err)
   end
 
   def deep_symbolize_keys(hash)
