@@ -12,10 +12,18 @@ class Faucet
 
       BIG_CAPTCHA_SIZE = 400
 
+      def answer_rejected
+        if @last_captcha_id
+          logger.info { 'Reporting incorrect answer of captcha [%s] to external service [2captcha.com].' % @last_captcha_id }
+          @imageable_dm.two_captcha_client.report!(@last_captcha_id)
+        end
+      end
+
       protected
 
       def imageable_initialize(dm)
         @imageable_dm = dm
+        @last_captcha_id = nil
       end
 
       def element_render(element)
@@ -25,18 +33,21 @@ class Faucet
       end
 
       def solve_image(image)
+        @last_captcha_id = nil
         if image.width + image.height >= BIG_CAPTCHA_SIZE
           size = 0.98 * BIG_CAPTCHA_SIZE.to_f
           new_width = size / (1.0 + image.height.to_f / image.width.to_f)
           image = image.resample_bilinear(new_width.round, (size - new_width).round)
         end
         logger.debug { 'Bypassing captcha image to external service [2captcha.com].' }
-        text = @imageable_dm.two_captcha_client.decode(raw: image.to_blob).text
-        if text.nil?
+        captcha = @imageable_dm.two_captcha_client.decode(raw: image.to_blob)
+        text = captcha.text
+        text = CGI.unescapeHTML(text).strip unless text.nil?
+        if text.nil? || text.empty? || !captcha.id
           logger.warn { 'Captcha solving external service [2captcha.com] returned error.' }
           raise Faucet::UnsolvableCaptchaError, 'captcha solving external service error'
         end
-        text = CGI.unescapeHTML(text)
+        @last_captcha_id = captcha.id
         logger.debug { 'Captcha text [%s] received from external service [2captcha.com].' %  text }
         text
       end

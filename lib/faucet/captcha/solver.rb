@@ -62,14 +62,14 @@ class Faucet
         end
         if has_result?('BodyPlaceholder_SuccessfulClaimPanel')
           logger.info { 'Captcha properly solved. Answer [%s] accepted.' % answer }
-          # solved_by.answer_accepted
+          solved_by.answer_accepted
           return true
         end
         if has_result?('BodyPlaceholder_FailedClaimPanel')
           logger.warn { 'Captcha improperly solved. Answer [%s] rejected.' % answer }
-          # solved_by.answer_rejected
           File.write(File.join(dm.config.application[:error_log], 'catcha-rejected_answer-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S')),
                      captcha_image_blob) if dm.config.application[:error_log]
+          solved_by.answer_rejected
           return false # A moze wyjatek?
         end
         raise Capybara::ElementNotFound, 'unable to find answer correctness element'

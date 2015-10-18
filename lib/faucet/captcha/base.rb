@@ -13,6 +13,12 @@ class Faucet
       def initialize(dm)
         @dm = dm
       end
+
+      def answer_accepted
+      end
+
+      def answer_rejected
+      end
     end
   end
 end
