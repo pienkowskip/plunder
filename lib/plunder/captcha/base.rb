@@ -1,5 +1,5 @@
 require_relative '../utility/logging'
-require_relative '../exceptions'
+require_relative '../errors'
 
 class Plunder
   module Captcha

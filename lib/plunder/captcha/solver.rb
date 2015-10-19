@@ -5,7 +5,7 @@ require_relative 'sponsored'
 require_relative 'canvas'
 require_relative 'image'
 require_relative '../utility/logging'
-require_relative '../exceptions'
+require_relative '../errors'
 require_relative '../../kernel'
 
 class Plunder
@@ -35,7 +35,7 @@ class Plunder
           break unless captcha.tag_name == 'img'
           logger.debug { 'Provided captcha is an image. Refreshing.' }
           popup.find(:id, 'adcopy-link-refresh').click
-          dm.sleep_rand(1.0..3.0)
+          dm.sleep_rand(2.0..4.0)
           captcha = popup.find(:id, 'adcopy-puzzle-image-image')
         end
         captcha_image_blob = Base64.decode64(browser.driver.render_base64(:png, selector: '#adcopy-puzzle-image-image'))
@@ -50,29 +50,33 @@ class Plunder
           end
         end
         unless answer
-          logger.debug { 'Captcha type not recognized.' }
-          raise Plunder::CaptchaError, 'cannot recognize captcha type'
+          logger.warn { 'Captcha type not recognized.' }
+          raise Plunder::CaptchaError, 'Captcha type not recognized.'
         end
         logger.debug { 'Submitting captcha answer [%s].' % answer }
-        browser.find(:id, 'adcopy_response').send_keys(answer, :Enter)
+        popup.find(:id, 'adcopy_response').send_keys(answer, :Enter)
         inline_rescue(Timeout::Error) do
           Timeout.timeout(dm.config.browser.fetch(:timeout, 30) / 3.0) do
             nil until has_result?('BodyPlaceholder_SuccessfulClaimPanel') || has_result?('BodyPlaceholder_FailedClaimPanel')
           end
         end
         if has_result?('BodyPlaceholder_SuccessfulClaimPanel')
-          logger.info { 'Captcha properly solved. Answer [%s] accepted.' % answer }
+          logger.info { 'Captcha correctly solved. Answer [%s] accepted.' % answer }
           solved_by.answer_accepted
           return true
         end
         if has_result?('BodyPlaceholder_FailedClaimPanel')
-          logger.warn { 'Captcha improperly solved. Answer [%s] rejected.' % answer }
+          logger.warn { 'Captcha incorrectly solved. Answer [%s] rejected.' % answer }
+          begin
           File.write(File.join(dm.config.application[:error_log], 'catcha-rejected_answer-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S')),
                      captcha_image_blob) if dm.config.application[:error_log]
+          rescue => exc
+            raise Plunder::ApplicationError, 'Cannot save image of captcha of rejected answer. Error: %s (%s).' % [exc.message, exc.class]
+          end
           solved_by.answer_rejected
-          return false # A moze wyjatek?
+          raise Plunder::CaptchaError, 'Captcha incorrectly solved. Answer [%s] rejected.' % answer
         end
-        raise Capybara::ElementNotFound, 'unable to find answer correctness element'
+        raise Plunder::AfterClaimError, 'Unable to find captcha answer correctness element.'
       end
 
       private

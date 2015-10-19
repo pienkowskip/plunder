@@ -1,13 +1,18 @@
 #!/usr/bin/env ruby
 
 require 'plunder'
+require 'plunder/moon_faucet'
 
 begin
   app = Plunder.new('../configs/ovh.yml')
+  faucets = [
+      ['http://moonbit.co.in/', '3Mwcxhog8gVUu7Wk5U9pAgxeauuW9YkYtY'],
+      ['http://moonliteco.in/', 'LfgBFMbZWmQrK54HRzxftPKWuqWm2jDZad'],
+      ['http://moondoge.co.in/', '9rowG76piqa9b4PsrgEtuMz8eqoxk1NH5M'],
+  ]
+
   app.setup_browser
-  app.claim('http://moondoge.co.in/', '9rowG76piqa9b4PsrgEtuMz8eqoxk1NH5M')
-  app.claim('http://moonliteco.in/', 'LfgBFMbZWmQrK54HRzxftPKWuqWm2jDZad')
-  app.claim('http://moonbit.co.in/', '3Mwcxhog8gVUu7Wk5U9pAgxeauuW9YkYtY')
+  faucets.each { |url, address| Plunder::MoonFaucet.new(app.dm, url, address).claim }
 rescue => exc
   begin
     app.logger.fatal { "Uncaught exception: #{exc.message} (#{exc.class})." }
@@ -27,4 +32,6 @@ rescue => exc
   ensure
     raise exc
   end
+ensure
+  app.quit_browser rescue nil
 end

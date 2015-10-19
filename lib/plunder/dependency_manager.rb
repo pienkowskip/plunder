@@ -1,6 +1,6 @@
 require 'two_captcha'
 
-require_relative 'exceptions'
+require_relative 'errors'
 require_relative 'captcha/solver'
 
 class Plunder::DependencyManager
@@ -13,7 +13,7 @@ class Plunder::DependencyManager
         api_key = begin
           dm.config.auth.fetch(:'2captcha.com').fetch(:api_key)
         rescue KeyError
-          raise Plunder::ConfigEntryError, 'configuration of 2captcha.com API authentication invalid'
+          raise Plunder::ConfigEntryError, 'Configuration of 2captcha.com API invalid. Lack of authentication key.'
         end
         TwoCaptcha.new(api_key, timeout: 120)
       end,
@@ -27,7 +27,7 @@ class Plunder::DependencyManager
     if constructor.nil?
       define_method(dependency) do
         var = instance_variable_get(dependency_var)
-        raise Plunder::DependencyError, "dependency '#{dependency}' is not set" if var.nil?
+        raise Plunder::DependencyError, "Dependency [#{dependency}] variable is not set." if var.nil?
         var
       end
       define_method(:"#{dependency}=") { |value| instance_variable_set(dependency_var, value) }

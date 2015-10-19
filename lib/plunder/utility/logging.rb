@@ -9,21 +9,21 @@ module Plunder::Utility
       attr_reader :duration
 
       def start
-        raise IllegalStateError, 'Timer not finished' unless @start.nil?
+        raise IllegalStateError, 'Timer not finished.' unless @start.nil?
         @duration = nil
         @start = Time.now
         self
       end
 
       def finish
-        raise IllegalStateError, 'Timer not started' if @start.nil?
+        raise IllegalStateError, 'Timer not started.' if @start.nil?
         @duration = Time.now - @start
         @start = nil
         self
       end
 
       def enhance(msg, color = true)
-        raise IllegalStateError, 'Timer not finished' if @duration.nil?
+        raise IllegalStateError, 'Timer not finished.' if @duration.nil?
         (color ? COLOR_FORMAT : SIMPLE_FORMAT) % {msg: msg.to_s, time: @duration}
       end
     end

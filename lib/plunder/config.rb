@@ -1,6 +1,6 @@
 require 'yaml'
 require_relative 'utility/logging'
-require_relative 'exceptions'
+require_relative 'errors'
 
 class Plunder::Config
   attr_reader :application, :auth, :browser
@@ -9,10 +9,10 @@ class Plunder::Config
     begin
       config = deep_symbolize_keys(YAML.load(File.open(fname, 'r')) || {})
     rescue SyntaxError
-      raise Plunder::ConfigError, 'configuration file invalid syntax'
+      raise Plunder::ConfigError, 'Configuration file has invalid syntax. Proper YAML required.'
     end
     [:application, :auth, :browser].each do |key|
-      raise Plunder::ConfigError, "configuration file not sufficient: missing '#{key}' entry" unless config.include?(key)
+      raise Plunder::ConfigError, "Configuration file not sufficient: missing [#{key}] entry." unless config.include?(key)
       instance_variable_set :"@#{key}", config[key].freeze
     end
     setup_logger

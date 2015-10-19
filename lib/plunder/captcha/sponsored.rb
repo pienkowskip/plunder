@@ -30,7 +30,7 @@ class Plunder::Captcha::Sponsored < Plunder::Captcha::Base
       browser.find(:id, 'overlay', visible: false)
       logger.debug { 'Captcha recognized as sponsored code. Starting solving.' }
       bg_image = browser.evaluate_script('window.getComputedStyle(document.querySelector(\'#overlay\')).backgroundImage').to_s
-      raise Plunder::CaptchaError, 'sponsored captcha code element is not embedded PNG' unless bg_image.start_with?(EMBEDDED_PNG_PREFIX) && bg_image.end_with?(EMBEDDED_PNG_SUFFIX)
+      raise Plunder::CaptchaError, 'Sponsored captcha code element background-image is not embedded PNG.' unless bg_image.start_with?(EMBEDDED_PNG_PREFIX) && bg_image.end_with?(EMBEDDED_PNG_SUFFIX)
       Base64.decode64(bg_image.slice(EMBEDDED_PNG_PREFIX.length..(-EMBEDDED_PNG_SUFFIX.length - 1)))
     end
     text = ocr_engine.text_for(image).strip
@@ -38,7 +38,7 @@ class Plunder::Captcha::Sponsored < Plunder::Captcha::Base
     PROPER_PREFIXES.each do |prefix|
       return text.slice(prefix.length..-1).strip if text.start_with?(prefix)
     end
-    raise Plunder::CaptchaError, 'sponsored captcha code has invalid prefix'
+    raise Plunder::CaptchaError, 'OCR decoded sponsored captcha code [%s] has invalid prefix.' % text
   rescue Capybara::ElementNotFound
     return false
   end
