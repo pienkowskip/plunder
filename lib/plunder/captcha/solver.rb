@@ -35,7 +35,7 @@ class Plunder
           break unless captcha.tag_name == 'img'
           logger.debug { 'Provided captcha is an image. Refreshing.' }
           popup.find(:id, 'adcopy-link-refresh').click
-          dm.sleep_rand(2.0..4.0)
+          dm.random.sleep(2.0..4.0)
           captcha = popup.find(:id, 'adcopy-puzzle-image-image')
         end
         captcha_image_blob = Base64.decode64(browser.driver.render_base64(:png, selector: '#adcopy-puzzle-image-image'))

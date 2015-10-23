@@ -2,6 +2,8 @@ require 'two_captcha'
 
 require_relative 'errors'
 require_relative 'captcha/solver'
+require_relative 'utility/scheduler'
+require_relative 'utility/random'
 
 class Plunder::DependencyManager
   DEPENDENCIES = {
@@ -17,8 +19,11 @@ class Plunder::DependencyManager
         end
         TwoCaptcha.new(api_key, timeout: 120)
       end,
-      prng: ->(_) do
-        Random.new
+      random: ->(_) do
+        Plunder::Utility::Random.new
+      end,
+      scheduler: ->(_) do
+        Plunder::Utility::Scheduler.new
       end
   }.freeze
 
@@ -39,9 +44,5 @@ class Plunder::DependencyManager
       end
     end
     define_method(:"#{dependency}?") { !instance_variable_get(dependency_var).nil? }
-  end
-
-  def sleep_rand(*args)
-    sleep prng.rand(*args)
   end
 end

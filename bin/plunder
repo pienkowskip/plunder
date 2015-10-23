@@ -11,27 +11,49 @@ begin
       ['http://moondoge.co.in/', '9rowG76piqa9b4PsrgEtuMz8eqoxk1NH5M'],
   ]
 
+  ['INT', 'TERM'].each do |signal|
+    Signal.trap(signal) do
+      app.logger.info { '[%s] signal received. Quitting.' % signal }
+      exit
+    end
+  end
   app.setup_browser
-  faucets.each { |url, address| Plunder::MoonFaucet.new(app.dm, url, address).claim }
+
+  faucets.map! do |url, address|
+    faucet = Plunder::MoonFaucet.new(app.dm, url, address)
+    task = -> do
+      delay = nil
+      begin
+        faucet.claim
+        app.browser.visit('about:blank')
+      rescue Plunder::Error => exc
+        app.logger.error { 'Faucet claiming error: %s (%s).' % [exc.message, exc.class] }
+        app.diagnostic_dump(exc)
+        delay = faucet.next_claim_delay(exc)
+        app.restart_browser if exc.is_a?(Plunder::FatalBrowserError)
+      end
+      delay = faucet.next_claim_delay unless delay
+      app.dm.scheduler.add_task(task, Time.new + delay)
+    end
+    app.dm.scheduler.add_task(task, Time.new)
+  end
+
+  loop do
+    app.dm.scheduler.execute_next_task
+  end
 rescue => exc
   begin
     app.logger.fatal { "Uncaught exception: #{exc.message} (#{exc.class})." }
-    if app.dm.config.application[:error_log]
-      time = Time.new
-      time_str = time.strftime('%Y%m%dT%H%M%S')
-      File.open(File.join(app.dm.config.application[:error_log], '%s.txt' % time_str), 'a') do |io|
-        io.puts("Application crash at #{time}.", nil)
-        io.puts("Uncaught exception: #{exc.message} (#{exc.class}).", nil)
-        io.puts('Backtrace:', exc.backtrace)
-      end
-      if app.browser?
-        app.browser.save_screenshot(File.join(app.dm.config.application[:error_log], '%s.png' % time_str), full: true)
-        File.write(File.join(app.dm.config.application[:error_log], '%s.html' % time_str), app.browser.html)
-      end
-    end
+    app.diagnostic_dump(exc)
+  rescue => nested_exc
+    app.logger.error { 'Error: %s (%s).' % [nested_exc.message, nested_exc.class] }
   ensure
     raise exc
   end
 ensure
-  app.quit_browser rescue nil
+  begin
+    app.quit_browser
+  rescue => ensure_exc
+    app.logger.error { 'Error: %s (%s).' % [ensure_exc.message, ensure_exc.class] }
+  end
 end

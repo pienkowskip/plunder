@@ -28,6 +28,13 @@ class Plunder::MoonFaucet
 
   def initialize(dm, url, address)
     @dm, @url, @address = dm, url, address
+    @claim_retry_delays = [
+        [Plunder::FatalBrowserError, -> { @dm.random.gauss_rand(15, 3) }],
+        [Plunder::BrowserError, -> { @dm.random.gauss_rand(60, 8) }],
+        [Plunder::AfterClaimError, method(:next_claim_regular_delay)],
+        [Plunder::BeforeClaimError, -> { @dm.random.gauss_rand(30, 4) }],
+        [Plunder::Error, -> { @dm.random.gauss_rand(40, 6) }]
+    ].freeze
   end
 
   def claim
@@ -35,12 +42,14 @@ class Plunder::MoonFaucet
       browser.visit(url)
       logger.debug { 'Claiming URL [%s] loaded.' % url }
       sign_in
+      dm.random.sleep(1.0..2.0)
       logger.debug { 'Beginning to perform claim for [%s].' % address }
       browser.find(:id, 'SubmitButton').click
       solve_captcha
     rescue Capybara::ElementNotFound => exc
       raise Plunder::BeforeClaimError, 'Element required in claiming flow not found (%s).' % exc.message
     end
+    dm.random.sleep(1.0..2.0)
     grab_results
   rescue Capybara::Poltergeist::TimeoutError => exc
     raise Plunder::BrowserError, 'Timed out waiting for response to [%s].' % exc.instance_variable_get(:@message)
@@ -52,6 +61,13 @@ class Plunder::MoonFaucet
     raise Plunder::FatalBrowserError, 'Browser error occurred: %s (%s). Restart is required.' % [exc.message, exc.class]
   rescue => exc
     raise Plunder::ApplicationError, 'Unknown error occurred during claiming: %s (%s).' % [exc.message, exc.class]
+  end
+
+  def next_claim_delay(exc = nil)
+    return next_claim_regular_delay unless exc
+    delay = @claim_retry_delays.find(nil) { |klass,_| exc.is_a?(klass) }
+    raise Plunder::ApplicationError, 'Claim retry delay not defined for [%s] exception.' % exc.class if delay.nil?
+    delay[1].call
   end
 
   private
@@ -76,7 +92,7 @@ class Plunder::MoonFaucet
   end
 
   def solve_captcha(solving_tries = CAPTCHA_SOLVING_TRIES)
-    dm.sleep_rand(4.0..6.0)
+    dm.random.sleep(4.0..6.0)
     dm.captcha_solver.solve
   rescue Plunder::CaptchaError => exc
     solving_tries -= 1
@@ -109,5 +125,11 @@ class Plunder::MoonFaucet
     return granted
   rescue Capybara::ElementNotFound => exc
     raise Plunder::AfterClaimError, 'Element required for grabbing claim results not found (%s).' % exc.message
+  end
+
+  def next_claim_regular_delay
+    delay = 0
+    delay = dm.random.gauss_rand(8 * 60, 45) while delay < 5 * 60
+    delay
   end
 end

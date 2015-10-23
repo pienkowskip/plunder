@@ -1,5 +1,6 @@
 require 'capybara/poltergeist'
 require 'forwardable'
+require 'set'
 
 require_relative 'plunder/version'
 require_relative 'plunder/dependency_manager'
@@ -56,14 +57,61 @@ class Plunder
     raise ApplicationError, 'Browser setting up error: %s (%s).' % [exc.message, exc.class]
   end
 
-  def reset_browser
+  def restart_browser
+    return false unless browser?
+    browser.driver.restart
+    logger.debug { 'Browser [%s] was restarted.' % browser.mode }
+    true
+  rescue => exc
+    raise ApplicationError, 'Browser restarting error: %s (%s).' % [exc.message, exc.class]
   end
 
   def quit_browser
-    return unless browser?
+    return false unless browser?
+    browser_name = browser.mode
     browser.driver.quit
     dm.browser = nil
+    logger.debug { 'Browser [%s] was quitted.' % browser_name }
+    true
   rescue => exc
     raise ApplicationError, 'Browser quitting error: %s (%s).' % [exc.message, exc.class]
+  end
+
+  def diagnostic_dump(exception = nil, path = nil)
+    time = Time.new
+    if path.nil?
+      return false unless dm.config.application[:error_log]
+      path = File.join(dm.config.application[:error_log], Time.new.strftime('%Y-%m-%d_T%H%M%S'))
+    end
+    if exception
+      File.open(path + '.txt', 'a') do |io|
+        io.puts("Application error at #{time}.", nil)
+        io.puts("Exception: #{exception.message} (#{exception.class}).", nil)
+        io.puts('Backtrace:')
+        print_exception(exception, io)
+      end
+    end
+    if browser?
+      browser.save_screenshot(path + '.png', full: true)
+      File.write(path + '.html', browser.html)
+    end
+    true
+  rescue => exc
+    raise ApplicationError, 'Cannot save diagnostic dump. Error: %s (%s).' % [exc.message, exc.class]
+  end
+
+  private
+
+  def print_exception(exception, io = STDERR)
+    exc_to_s = ->(exc) { exc.message == exc.class.name ? exc.class.name : "#{exc.class.name}: #{exc.message}" }
+    io.puts(exc_to_s.call(exception))
+    exception.backtrace.each { |entry| io.puts("\tfrom #{entry}") }
+    exc = exception
+    cause_set = Set.new
+    while exc.respond_to?(:cause) && exc.cause && cause_set.add?(exc.object_id)
+      exc = exc.cause
+      io.puts("Caused by: #{exc_to_s.call(exc)}")
+      exc.backtrace.each { |entry| io.puts("\tfrom #{entry}") }
+    end
   end
 end
