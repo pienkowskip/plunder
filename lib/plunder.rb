@@ -24,7 +24,7 @@ class Plunder
   def setup_browser
     browser_cfg = dm.config.browser
     Capybara.ignore_hidden_elements = true
-    # Capybara.default_max_wait_time = 3
+    Capybara.default_max_wait_time = browser_cfg.fetch(:element_timeout, 2)
     webdriver = browser_cfg.fetch(:webdriver).to_sym
     case webdriver
       when :poltergeist

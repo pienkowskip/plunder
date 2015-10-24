@@ -3,6 +3,10 @@
 require 'plunder'
 require 'plunder/moon_faucet'
 
+['INT', 'TERM'].each do |signal|
+  Signal.trap(signal) { exit 0 }
+end
+
 begin
   app = Plunder.new('../configs/ovh.yml')
   faucets = [
@@ -11,12 +15,6 @@ begin
       ['http://moondoge.co.in/', '9rowG76piqa9b4PsrgEtuMz8eqoxk1NH5M'],
   ]
 
-  ['INT', 'TERM'].each do |signal|
-    Signal.trap(signal) do
-      app.logger.info { '[%s] signal received. Quitting.' % signal }
-      exit
-    end
-  end
   app.setup_browser
 
   faucets.map! do |url, address|
@@ -28,9 +26,9 @@ begin
         app.browser.visit('about:blank')
       rescue Plunder::Error => exc
         app.logger.error { 'Faucet claiming error: %s (%s).' % [exc.message, exc.class] }
+        app.restart_browser if exc.is_a?(Plunder::FatalBrowserError) # not sure if necessary?
         app.diagnostic_dump(exc)
         delay = faucet.next_claim_delay(exc)
-        app.restart_browser if exc.is_a?(Plunder::FatalBrowserError)
       end
       delay = faucet.next_claim_delay unless delay
       app.dm.scheduler.add_task(task, Time.new + delay)
@@ -41,6 +39,8 @@ begin
   loop do
     app.dm.scheduler.execute_next_task
   end
+rescue SystemExit
+  app.logger.info { 'Exit signal received. Quitting application.' }
 rescue => exc
   begin
     app.logger.fatal { "Uncaught exception: #{exc.message} (#{exc.class})." }

@@ -21,19 +21,27 @@ class Plunder::MoonFaucet
     end
   end
 
+  GaussianClaimInterval = Struct.new(:mean, :std_dev, :min) do
+    def interval(dm)
+      interval = dm.random.gauss_rand(mean, std_dev)
+      !min.nil? && interval < min ? min : interval
+    end
+  end
+
   CAPTCHA_SOLVING_TRIES = 3
 
   attr_reader :dm, :url, :address
   def_delegators :@dm, :browser
 
-  def initialize(dm, url, address)
+  def initialize(dm, url, address, claim_interval = GaussianClaimInterval.new(8 * 60, 45, 5 * 60))
     @dm, @url, @address = dm, url, address
+    @claim_interval = claim_interval.dup.freeze
     @claim_retry_delays = [
-        [Plunder::FatalBrowserError, -> { @dm.random.gauss_rand(15, 3) }],
-        [Plunder::BrowserError, -> { @dm.random.gauss_rand(60, 8) }],
-        [Plunder::AfterClaimError, method(:next_claim_regular_delay)],
-        [Plunder::BeforeClaimError, -> { @dm.random.gauss_rand(30, 4) }],
-        [Plunder::Error, -> { @dm.random.gauss_rand(40, 6) }]
+        [Plunder::FatalBrowserError, GaussianClaimInterval.new(15, 3)],
+        [Plunder::BrowserError, GaussianClaimInterval.new(60, 8)],
+        [Plunder::AfterClaimError, @claim_interval],
+        [Plunder::BeforeClaimError, GaussianClaimInterval.new(30, 4)],
+        [Plunder::Error, GaussianClaimInterval.new(40, 6)]
     ].freeze
   end
 
@@ -64,10 +72,10 @@ class Plunder::MoonFaucet
   end
 
   def next_claim_delay(exc = nil)
-    return next_claim_regular_delay unless exc
+    return @claim_interval.interval(dm) unless exc
     delay = @claim_retry_delays.find(nil) { |klass,_| exc.is_a?(klass) }
     raise Plunder::ApplicationError, 'Claim retry delay not defined for [%s] exception.' % exc.class if delay.nil?
-    delay[1].call
+    delay[1].interval(dm)
   end
 
   private
@@ -125,11 +133,5 @@ class Plunder::MoonFaucet
     return granted
   rescue Capybara::ElementNotFound => exc
     raise Plunder::AfterClaimError, 'Element required for grabbing claim results not found (%s).' % exc.message
-  end
-
-  def next_claim_regular_delay
-    delay = 0
-    delay = dm.random.gauss_rand(8 * 60, 45) while delay < 5 * 60
-    delay
   end
 end
