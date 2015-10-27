@@ -20,12 +20,12 @@ class Plunder::Captcha::Image < Plunder::Captcha::Base
     logger.debug { 'Captcha recognized as image. Starting solving.' }
     image = element_render(element)
     if recognize(image)
-      image.crop!(5, pattern.height + 3, image.width - 2 * 5, image.height - 5 - pattern.height - 3)
+      image.crop!(5, pattern.height + 2, image.width - 2 * 5, image.height - 3 - pattern.height - 2)
     else
       image.crop!(3, 3, image.width - 2 * 3, image.height - 2 * 3)
       logger.warn { 'Captcha image has unknown pattern. Trying to solve anyway.' }
     end
-    solve_image(image)
+    solve_captcha_image(image)
   end
 
   private

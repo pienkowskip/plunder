@@ -7,53 +7,49 @@ require 'plunder/moon_faucet'
   Signal.trap(signal) { exit 0 }
 end
 
+require_relative 'setups/ovh'
+
 begin
-  app = Plunder.new('../configs/ovh.yml')
-  faucets = [
-      ['http://moonbit.co.in/', '3Mwcxhog8gVUu7Wk5U9pAgxeauuW9YkYtY'],
-      ['http://moonliteco.in/', 'LfgBFMbZWmQrK54HRzxftPKWuqWm2jDZad'],
-      ['http://moondoge.co.in/', '9rowG76piqa9b4PsrgEtuMz8eqoxk1NH5M'],
-  ]
+  $app.setup_browser
 
-  app.setup_browser
-
-  faucets.map! do |url, address|
-    faucet = Plunder::MoonFaucet.new(app.dm, url, address)
+  $faucets.map! do |url, address|
+    faucet = Plunder::MoonFaucet.new($app.dm, url, address)
     task = -> do
       delay = nil
       begin
         faucet.claim
-        app.browser.visit('about:blank')
+        $app.browser.visit('about:blank')
       rescue Plunder::Error => exc
-        app.logger.error { 'Faucet claiming error: %s (%s).' % [exc.message, exc.class] }
-        app.restart_browser if exc.is_a?(Plunder::FatalBrowserError) # not sure if necessary?
-        app.diagnostic_dump(exc)
+        $app.logger.error { 'Faucet claiming error: %s (%s).' % [exc.message, exc.class] }
+        $app.restart_browser if exc.is_a?(Plunder::FatalBrowserError) # not sure if necessary?
+        $app.diagnostic_dump(exc)
         delay = faucet.next_claim_delay(exc)
       end
       delay = faucet.next_claim_delay unless delay
-      app.dm.scheduler.add_task(task, Time.new + delay)
+      $app.dm.scheduler.add_task(task, Time.new + delay)
     end
-    app.dm.scheduler.add_task(task, Time.new)
+    $app.dm.scheduler.add_task(task, Time.new)
   end
 
   loop do
-    app.dm.scheduler.execute_next_task
+    $app.dm.scheduler.execute_next_task
   end
-rescue SystemExit
-  app.logger.info { 'Exit signal received. Quitting application.' }
+rescue SystemExit => exc
+  $app.logger.info { 'Exit signal received. Quitting application.' }
+  raise exc
 rescue => exc
   begin
-    app.logger.fatal { "Uncaught exception: #{exc.message} (#{exc.class})." }
-    app.diagnostic_dump(exc)
+    $app.logger.fatal { "Uncaught exception: #{exc.message} (#{exc.class})." }
+    $app.diagnostic_dump(exc)
   rescue => nested_exc
-    app.logger.error { 'Error: %s (%s).' % [nested_exc.message, nested_exc.class] }
+    $app.logger.error { 'Error: %s (%s).' % [nested_exc.message, nested_exc.class] }
   ensure
     raise exc
   end
 ensure
   begin
-    app.quit_browser
+    $app.quit_browser
   rescue => ensure_exc
-    app.logger.error { 'Error: %s (%s).' % [ensure_exc.message, ensure_exc.class] }
+    $app.logger.error { 'Error: %s (%s).' % [ensure_exc.message, ensure_exc.class] }
   end
 end

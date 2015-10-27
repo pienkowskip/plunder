@@ -32,8 +32,34 @@ class Plunder
         ChunkyPNG::Image.from_blob(Base64.decode64(base64))
       end
 
-      def solve_image(image)
+      def solve_captcha_image(image)
         @last_captcha_id = nil
+        answer = solve_with_ocr(image)
+        return answer if answer
+        solve_with_external_service(image)
+      end
+
+      private
+
+      def solve_with_ocr(image)
+        logger.debug { 'Solving captcha image via OCR engine.' }
+        block = dm.ocr_engine.blocks_for(image)
+        unless block.size == 1
+          logger.warn { 'OCR engine returned invalid number of blocks. Should be one.' }
+          return false
+        end
+        block = block[0]
+        if block.confidence >= 70
+          text = block.text.strip.gsub(/\s+/, ' ')
+          logger.debug { 'Captcha text [%s] received from OCR engine with confidence [%.1f%%].' %  [text, block.confidence] }
+          text
+        else
+          logger.debug { 'Confidence [%.1f%%] of captcha-solving OCR engine results is too low.' % block.confidence }
+          false
+        end
+      end
+
+      def solve_with_external_service(image)
         if image.width + image.height >= BIG_CAPTCHA_SIZE
           size = 0.98 * BIG_CAPTCHA_SIZE.to_f
           new_width = size / (1.0 + image.height.to_f / image.width.to_f)

@@ -34,7 +34,7 @@ class Plunder::Captcha::Sponsored < Plunder::Captcha::Base
       Base64.decode64(bg_image.slice(EMBEDDED_PNG_PREFIX.length..(-EMBEDDED_PNG_SUFFIX.length - 1)))
     end
     text = ocr_engine.text_for(image).strip
-    logger.debug { 'Sponsored captcha code text [%s] from OCR.' % text }
+    logger.debug { 'Sponsored captcha code text [%s] received from OCR engine.' % text }
     PROPER_PREFIXES.each do |prefix|
       return text.slice(prefix.length..-1).strip if text.start_with?(prefix)
     end

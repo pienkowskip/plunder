@@ -1,4 +1,5 @@
 require 'two_captcha'
+require 'tesseract'
 
 require_relative 'errors'
 require_relative 'captcha/solver'
@@ -24,6 +25,12 @@ class Plunder::DependencyManager
       end,
       scheduler: ->(_) do
         Plunder::Utility::Scheduler.new
+      end,
+      ocr_engine: ->(_) do
+        Tesseract::Engine.new do |engine|
+          engine.language  = :en
+          engine.blacklist = '|'
+        end
       end
   }.freeze
 
