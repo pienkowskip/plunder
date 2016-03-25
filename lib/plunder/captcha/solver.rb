@@ -68,8 +68,8 @@ class Plunder
         if has_result?('BodyPlaceholder_FailedClaimPanel')
           logger.warn { 'Captcha incorrectly solved. Answer [%s] rejected.' % answer }
           begin
-          File.write(File.join(dm.config.application[:error_log], 'catcha-rejected_answer-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S')),
-                     captcha_image_blob) if dm.config.application[:error_log]
+            File.write(File.join(dm.config.application[:error_log], 'captcha-rejected_answer-%s.png' % Time.now.strftime('%FT%H%M%S')),
+                       captcha_image_blob) if dm.config.application[:error_log]
           rescue => exc
             raise Plunder::ApplicationError, 'Cannot save image of captcha of rejected answer. Error: %s (%s).' % [exc.message, exc.class]
           end

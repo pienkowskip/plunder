@@ -81,7 +81,7 @@ class Plunder
     time = Time.new
     if path.nil?
       return false unless dm.config.application[:error_log]
-      path = File.join(dm.config.application[:error_log], Time.new.strftime('%Y-%m-%d_T%H%M%S'))
+      path = File.join(dm.config.application[:error_log], Time.now.strftime('%FT%H%M%S'))
     end
     if exception
       File.open(path + '.txt', 'a') do |io|

@@ -7,10 +7,6 @@ class Plunder::Captcha::Canvas < Plunder::Captcha::Base
   def initialize(dm)
     super
     imageable_initialize(dm)
-    @ocr_engine = Tesseract::Engine.new do |engine|
-      engine.language  = :en
-      engine.blacklist = '|'
-    end
   end
 
   def solve(element)
@@ -26,7 +22,6 @@ class Plunder::Captcha::Canvas < Plunder::Captcha::Base
       end
       logger.debug { 'Captcha recognized as canvas. Starting solving.' }
       top = browser.evaluate_script('document.querySelector(\'#top\').clientHeight').to_i
-      dm.plunder.diagnostic_dump(nil, File.join(dm.config.application[:error_log], 'catcha-for_ocr-%s.png' % Time.new.strftime('%Y%m%dT%H%M%S')))
     end
     image = element_render(element)
     image.crop!(4, top + 2, image.width - 2 * 4, image.height - top - 2)
