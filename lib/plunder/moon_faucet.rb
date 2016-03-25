@@ -24,7 +24,9 @@ class Plunder::MoonFaucet
   GaussianClaimInterval = Struct.new(:mean, :std_dev, :min) do
     def interval(dm)
       interval = dm.random.gauss_rand(mean, std_dev)
-      !min.nil? && interval < min ? min : interval
+      return min if !min.nil? && interval < min
+      return 0 if interval < 0
+      interval
     end
   end
 

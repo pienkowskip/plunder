@@ -7,13 +7,13 @@ module Plunder::Utility
     end
 
     def add_task(task, at)
-      raise ArgumentError, 'argument \'task\' is not callable (absence of call method)' unless task.respond_to?(:call)
-      raise ArgumentError, 'argument \'at\' is not instance of Time class' unless at.is_a?(Time)
+      raise ArgumentError, 'Argument \'task\' is not callable (absence of call method).' unless task.respond_to?(:call)
+      raise ArgumentError, 'Argument \'at\' is not instance of Time class.' unless at.is_a?(Time)
       @queue.push([task, at].freeze)
     end
 
     def execute_next_task
-      raise StopIteration, 'no tasks to execute' if empty?
+      raise StopIteration, 'No tasks to execute.' if empty?
       now = Time.new
       sleep next_task_at - now if next_task_at > now
       task = @queue.pop[0]
