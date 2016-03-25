@@ -17,6 +17,24 @@ Or install it yourself as:
 
     $ gem install plunder
 
+### Prerequirements
+
+#### Tesseract OCR gem
+
+Gem `tesseract-ocr` requires Debian packages: `libleptonica-dev` and `libtesseract-dev`.
+Additionally you will need language package `tesseract-ocr-eng`.
+
+Probably you will need to setup `TESSDATA_PREFIX` environment var to directory with languages files.
+
+#### Phashion gem
+
+To build native extension for `phashion` gem you need to install Debian packages: `libjpeg-dev` and `libpng-dev`.
+
+#### PhantomJS
+
+Headless browser (Poltergeist) requires JavaScript engine binary.
+I recommend PhantomJS which can be downloaded from <http://phantomjs.org/download.html>.
+
 ## Usage
 
 TODO: Write instructions here.
