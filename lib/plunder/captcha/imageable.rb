@@ -11,7 +11,7 @@ class Plunder
       include Plunder::Utility::Logging
 
       BIG_CAPTCHA_SIZE = 400
-      MIN_OCR_CONFIDENCE = 70
+      DEFAULT_MIN_OCR_CONFIDENCE = 70
 
       def answer_rejected
         if @last_captcha_id
@@ -25,6 +25,13 @@ class Plunder
       def imageable_initialize(dm)
         @imageable_dm = dm
         @last_captcha_id = nil
+        @min_ocr_confidence = dm.config.application.fetch(:min_ocr_confidence, DEFAULT_MIN_OCR_CONFIDENCE)
+        begin
+          @min_ocr_confidence = Float(@min_ocr_confidence)
+          raise ArgumentError, 'not finite number' unless @min_ocr_confidence.finite?
+        rescue
+          raise Plunder::ConfigEntryError.new('application.min_ocr_confidence', 'not a valid number')
+        end
       end
 
       def element_render(element)
@@ -62,7 +69,7 @@ class Plunder
           save_suspected_captcha(image)
           return false
         end
-        if block.confidence >= MIN_OCR_CONFIDENCE
+        if block.confidence >= @min_ocr_confidence
           text = block.text.strip.gsub(/\s+/, ' ')
           logger.debug { 'Captcha text [%s] received from OCR engine with confidence [%.1f%%].' %  [text, block.confidence] }
           text
