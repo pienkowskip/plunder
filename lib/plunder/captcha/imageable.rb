@@ -11,6 +11,7 @@ class Plunder
       include Plunder::Utility::Logging
 
       BIG_CAPTCHA_SIZE = 400
+      MIN_OCR_CONFIDENCE = 70
 
       def answer_rejected
         if @last_captcha_id
@@ -41,20 +42,27 @@ class Plunder
 
       private
 
+      def save_suspected_captcha(image)
+        image.save(File.join(dm.config.application[:error_log], 'captcha-ocr_engine_failure-%s.png' % Time.now.strftime('%FT%H%M%S'))) if dm.config.application[:error_log]
+      rescue => exc
+        raise Plunder::ApplicationError, 'Cannot save image of captcha bypassed to OCR solving. Error: %s (%s).' % [exc.message, exc.class]
+      end
+
       def solve_with_ocr(image)
         logger.debug { 'Solving captcha image via OCR engine.' }
-        begin
-          image.save(File.join(dm.config.application[:error_log], 'captcha-for_ocr-%s.png' % Time.now.strftime('%FT%H%M%S'))) if dm.config.application[:error_log]
-        rescue => exc
-          raise Plunder::ApplicationError, 'Cannot save image of captcha bypassed to OCR solving. Error: %s (%s).' % [exc.message, exc.class]
-        end
         block = dm.ocr_engine.blocks_for(image)
         unless block.size == 1
           logger.warn { 'OCR engine returned invalid number of blocks. Should be one.' }
+          save_suspected_captcha(image)
           return false
         end
         block = block[0]
-        if block.confidence >= 70
+        if block.text.nil?
+          logger.warn { 'OCR engine failed to solve captcha. Internal error.' }
+          save_suspected_captcha(image)
+          return false
+        end
+        if block.confidence >= MIN_OCR_CONFIDENCE
           text = block.text.strip.gsub(/\s+/, ' ')
           logger.debug { 'Captcha text [%s] received from OCR engine with confidence [%.1f%%].' %  [text, block.confidence] }
           text
