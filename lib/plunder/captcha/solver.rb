@@ -83,6 +83,7 @@ class Plunder
 
       def has_result?(id)
         browser.find(:id, id)
+        true
       rescue Capybara::ElementNotFound
         return false
       end

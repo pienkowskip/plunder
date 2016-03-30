@@ -8,7 +8,7 @@ require 'plunder/utility/downtime'
   Signal.trap(signal) { exit 0 }
 end
 
-require_relative 'setups/ovh'
+require_relative 'setups/local'
 
 begin
   $app.setup_browser
@@ -24,8 +24,14 @@ begin
         $app.browser.visit('about:blank')
       rescue Plunder::Error => exc
         $app.logger.error { 'Faucet claiming error: %s (%s).' % [exc.message, exc.class] }
-        $app.restart_browser if exc.is_a?(Plunder::FatalBrowserError) # not sure if necessary?
-        $app.diagnostic_dump(exc)
+        restart = exc.is_a?(Plunder::FatalBrowserError)
+        begin
+          $app.diagnostic_dump(exc)
+        rescue Plunder::BrowserError => nested_exc
+          $app.logger.warn { 'Saving diagnostic dump error: %s (%s).' % [nested_exc.message, nested_exc.class] }
+          restart = true if nested_exc.is_a?(Plunder::FatalBrowserError)
+        end
+        $app.restart_browser if restart # not sure if necessary?
         delay = faucet.next_claim_delay(exc)
       end
       delay = faucet.next_claim_delay unless delay
@@ -45,7 +51,7 @@ rescue => exc
     $app.logger.fatal { "Uncaught exception: #{exc.message} (#{exc.class})." }
     $app.diagnostic_dump(exc)
   rescue => nested_exc
-    $app.logger.error { 'Error: %s (%s).' % [nested_exc.message, nested_exc.class] }
+    $app.logger.error { 'Saving diagnostic dump error: %s (%s).' % [nested_exc.message, nested_exc.class] }
   ensure
     raise exc
   end

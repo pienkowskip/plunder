@@ -96,8 +96,12 @@ class Plunder
       File.write(path + '.html', browser.html)
     end
     true
+  rescue Capybara::Poltergeist::TimeoutError => exc
+    raise Plunder::BrowserError, 'Timed out waiting for response to [%s].' % exc.instance_variable_get(:@message)
+  rescue Errno::ECONNRESET, Capybara::Poltergeist::DeadClient => exc
+    raise Plunder::FatalBrowserError, 'Browser error occurred: %s (%s).' % [exc.message, exc.class]
   rescue => exc
-    raise ApplicationError, 'Cannot save diagnostic dump. Error: %s (%s).' % [exc.message, exc.class]
+    raise ApplicationError, 'Unknown error occurred during diagnostic dump: %s (%s).' % [exc.message, exc.class]
   end
 
   private

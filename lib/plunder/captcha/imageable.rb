@@ -86,7 +86,7 @@ class Plunder
           image = image.resample_bilinear(new_width.round, (size - new_width).round)
         end
         logger.debug { 'Bypassing captcha image to external service [2captcha.com].' }
-        captcha = @imageable_dm.two_captcha_client.decode(raw: image.to_blob)
+        captcha = @imageable_dm.two_captcha_client.decode(raw: image.to_blob) #TODO: Handle TwoCaptcha exceptions like timeout.
         text = captcha.text
         text = CGI.unescapeHTML(text).strip unless text.nil?
         if text.nil? || text.empty? || !captcha.id
