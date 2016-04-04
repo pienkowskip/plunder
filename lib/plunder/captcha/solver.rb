@@ -53,6 +53,7 @@ class Plunder
           logger.warn { 'Captcha type not recognized.' }
           raise Plunder::CaptchaError, 'Captcha type not recognized.'
         end
+        answer.force_encoding(Encoding::UTF_8)
         logger.debug { 'Submitting captcha answer [%s].' % answer }
         popup.find(:id, 'adcopy_response').send_keys(answer, :Enter)
         inline_rescue(Timeout::Error) do
