@@ -6,10 +6,12 @@ require_relative 'plunder/version'
 require_relative 'plunder/dependency_manager'
 require_relative 'plunder/config'
 require_relative 'plunder/utility/logging'
+require_relative 'plunder/utility/stats'
 require_relative 'plunder/errors'
 
 class Plunder
   include Utility::Logging
+  include Utility::Stats
   extend Forwardable
 
   attr_reader :dm
@@ -19,6 +21,7 @@ class Plunder
     @dm = DependencyManager.new
     @dm.plunder = self
     @dm.config = Config.new(config_filename).freeze
+    stat(:application, :init)
   end
 
   def setup_browser

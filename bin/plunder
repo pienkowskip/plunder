@@ -8,7 +8,7 @@ require 'plunder/utility/downtime'
   Signal.trap(signal) { exit 0 }
 end
 
-require_relative 'setups/local'
+require_relative '../configs/local'
 
 begin
   $app.setup_browser
@@ -24,6 +24,7 @@ begin
         $app.browser.visit('about:blank')
       rescue Plunder::Error => exc
         $app.logger.error { 'Faucet claiming error: %s (%s).' % [exc.message, exc.class] }
+        faucet.stat(:claim, :failure, faucet.url, faucet.address, exc.class, exc.message)
         restart = exc.is_a?(Plunder::FatalBrowserError)
         begin
           $app.diagnostic_dump(exc)
@@ -45,10 +46,12 @@ begin
   end
 rescue SystemExit => exc
   $app.logger.info { 'Exit signal received. Quitting application.' }
+  $app.stat(:application, :exit)
   raise exc
-rescue => exc
+rescue Exception => exc
   begin
     $app.logger.fatal { "Uncaught exception: #{exc.message} (#{exc.class})." }
+    $app.stat(:application, :crash, exc.class, exc.message)
     $app.diagnostic_dump(exc)
   rescue => nested_exc
     $app.logger.error { 'Saving diagnostic dump error: %s (%s).' % [nested_exc.message, nested_exc.class] }

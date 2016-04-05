@@ -43,7 +43,7 @@ module Plunder::Utility
     end
 
     def self.logger_for(classname)
-      return @loggers[classname] if @loggers.include? classname
+      return @loggers[classname] if @loggers.include?(classname)
       logger = Logger.new(@logdev)
       logger.progname = classname
       logger.level = @level

@@ -5,6 +5,7 @@ require_relative 'sponsored'
 require_relative 'canvas'
 require_relative 'image'
 require_relative '../utility/logging'
+require_relative '../utility/stats'
 require_relative '../errors'
 require_relative '../../kernel'
 
@@ -12,6 +13,7 @@ class Plunder
   module Captcha
     class Solver
       include Plunder::Utility::Logging
+      include Plunder::Utility::Stats
       extend Forwardable
 
       IMAGE_CAPTCHA_REFRESHES = 3
@@ -31,13 +33,16 @@ class Plunder
       def solve
         popup = browser.find(:id, 'CaptchaPopup')
         captcha = popup.find(:id, 'adcopy-puzzle-image-image')
+        refreshes = 0
         IMAGE_CAPTCHA_REFRESHES.times do
           break unless captcha.tag_name == 'img'
           logger.debug { 'Provided captcha is an image. Refreshing.' }
           popup.find(:id, 'adcopy-link-refresh').click
           dm.random.sleep(2.0..4.0)
           captcha = popup.find(:id, 'adcopy-puzzle-image-image')
+          refreshes += 1
         end
+        stat(:captcha, :image_refreshes, refreshes)
         captcha_image_blob = Base64.decode64(browser.driver.render_base64(:png, selector: '#adcopy-puzzle-image-image'))
         answer = nil
         solved_by = nil
@@ -46,11 +51,13 @@ class Plunder
           if answer
             solved_by = solver
             logger.debug { 'Captcha solved by [%s] solver.' % solved_by.class.name }
+            stat(:captcha, :solved, solved_by.class)
             break
           end
         end
         unless answer
           logger.warn { 'Captcha type not recognized.' }
+          stat(:captcha, :unrecognized)
           raise Plunder::CaptchaError, 'Captcha type not recognized.'
         end
         answer.force_encoding(Encoding::UTF_8)
@@ -63,6 +70,7 @@ class Plunder
         end
         if has_result?('BodyPlaceholder_SuccessfulClaimPanel')
           logger.info { 'Captcha correctly solved. Answer [%s] accepted.' % answer }
+          stat(:captcha, :accepted, answer)
           solved_by.answer_accepted
           return true
         end
@@ -74,6 +82,7 @@ class Plunder
           rescue => exc
             raise Plunder::ApplicationError, 'Cannot save image of captcha of rejected answer. Error: %s (%s).' % [exc.message, exc.class]
           end
+          stat(:captcha, :rejected, answer)
           solved_by.answer_rejected
           raise Plunder::CaptchaError, 'Captcha incorrectly solved. Answer [%s] rejected.' % answer
         end

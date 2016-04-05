@@ -1,11 +1,13 @@
 require 'forwardable'
 
 require_relative 'utility/logging'
+require_relative 'utility/stats'
 require_relative 'errors'
 require_relative '../bigdecimal_ext'
 
 class Plunder::MoonFaucet
   include Plunder::Utility::Logging
+  include Plunder::Utility::Stats
   extend Forwardable
 
   ClaimResult = Struct.new(:amount, :unit, :frac_len, :what) do
@@ -45,15 +47,18 @@ class Plunder::MoonFaucet
         [Plunder::BeforeClaimError, GaussianClaimInterval.new(30, 4)],
         [Plunder::Error, GaussianClaimInterval.new(40, 6)]
     ].freeze
+    stat(:application, :init, :faucet, url, address)
   end
 
   def claim
     begin
       browser.visit(url)
       logger.debug { 'Claiming URL [%s] loaded.' % url }
+      accept_cookies
       sign_in
       dm.random.sleep(1.0..2.0)
       logger.debug { 'Beginning to perform claim for [%s].' % address }
+      stat(:claim, :begin, url, address)
       browser.find(:id, 'SubmitButton').click
       solve_captcha
     rescue Capybara::ElementNotFound => exc
@@ -81,6 +86,14 @@ class Plunder::MoonFaucet
   end
 
   private
+
+  def accept_cookies
+    browser.find(:css, 'a.cc_btn_accept_all').click
+    logger.debug { 'Cookies consent banner dismissed.' }
+    true
+  rescue Capybara::ElementNotFound
+    false
+  end
 
   def signed_in?
     browser.find(:id, 'BodyPlaceholder_ClaimPanel').find(:id, 'SignedInPaymentAddress').value == address
@@ -129,9 +142,10 @@ class Plunder::MoonFaucet
     claimed = claim_results[0].amount
     bonus = claim_results.last(3).map(&:amount).reduce(:+)
     granted = (claimed * (100.to_d + bonus.to_d) / 100.to_d)
-    frac_len = claim_results[0].frac_len
-    logger.info { "Successful claim. [%.#{frac_len}f %s] claimed + [%d %%] bonuses = [%.#{frac_len}f %s] granted to address [%s]." %
+    frac_len_fmt = "%.#{claim_results[0].frac_len}f"
+    logger.info { "Successful claim. [#{frac_len_fmt} %s] claimed + [%d %%] bonuses = [#{frac_len_fmt} %s] granted to address [%s]." %
         [claimed, unit, bonus.round, granted, unit, address] }
+    stat(:claim, :success, url, address, unit, frac_len_fmt % balance, frac_len_fmt % granted, bonus.to_i, *claim_results.map {|cr| "%s: %.#{cr.frac_len}f" % [cr.what, cr.amount] })
     return granted
   rescue Capybara::ElementNotFound => exc
     raise Plunder::AfterClaimError, 'Element required for grabbing claim results not found (%s).' % exc.message

@@ -1,8 +1,14 @@
 require 'yaml'
 require_relative 'utility/logging'
+require_relative 'utility/stats'
 require_relative 'errors'
 
 class Plunder::Config
+  DEV_MAP = {
+      '<stdout>' => STDOUT,
+      '<stderr>' => STDERR
+  }.freeze
+
   attr_reader :application, :auth, :browser
 
   def initialize(fname)
@@ -16,6 +22,7 @@ class Plunder::Config
       instance_variable_set :"@#{key}", config[key].freeze
     end
     setup_logger
+    setup_stats
   end
 
   private
@@ -23,17 +30,23 @@ class Plunder::Config
   def setup_logger
     return false unless application.include?(:logger)
     logger = application[:logger]
-    logdev_map = {
-        '<stdout>' => STDOUT,
-        '<stderr>' => STDERR
-    }
     file = logger.fetch(:file)
-    file = logdev_map[file.downcase] if logdev_map.include?(file.downcase)
+    file = DEV_MAP[file.downcase] if DEV_MAP.include?(file.downcase)
     level = Logger::Severity.const_get(logger.fetch(:level).upcase.to_sym, false)
     Plunder::Utility::Logging.setup(file, level)
     true
   rescue => err
     raise Plunder::ConfigEntryError.new('application.logger', err)
+  end
+
+  def setup_stats
+    return false unless application.include?(:stats_file)
+    file = application[:stats_file]
+    file = DEV_MAP.include?(file.downcase) ? DEV_MAP[file.downcase] : File.open(file, 'a')
+    Plunder::Utility::Stats.setup(file)
+    true
+  rescue => err
+    raise Plunder::ConfigEntryError.new('application.stats_file', err)
   end
 
   def deep_symbolize_keys(hash)

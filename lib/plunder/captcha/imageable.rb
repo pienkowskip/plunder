@@ -3,12 +3,14 @@ require 'base64'
 require 'cgi'
 
 require_relative '../utility/logging'
+require_relative '../utility/stats'
 require_relative '../errors'
 
 class Plunder
   module Captcha
     module Imageable
       include Plunder::Utility::Logging
+      include Plunder::Utility::Stats
 
       BIG_CAPTCHA_SIZE = 400
       DEFAULT_MIN_OCR_CONFIDENCE = 70
@@ -16,6 +18,7 @@ class Plunder
       def answer_rejected
         if @last_captcha_id
           logger.info { 'Reporting incorrect answer of captcha [%s] to external service [2captcha.com].' % @last_captcha_id }
+          stat(:captcha, :external, :report, @last_captcha_id)
           @imageable_dm.two_captcha_client.report!(@last_captcha_id)
         end
       end
@@ -60,15 +63,18 @@ class Plunder
         block = dm.ocr_engine.blocks_for(image)
         unless block.size == 1
           logger.warn { 'OCR engine returned invalid number of blocks. Should be one.' }
+          stat(:captcha, :ocr, :failure)
           save_suspected_captcha(image)
           return false
         end
         block = block[0]
         if block.text.nil?
           logger.warn { 'OCR engine failed to solve captcha. Internal error.' }
+          stat(:captcha, :ocr, :failure)
           save_suspected_captcha(image)
           return false
         end
+        stat(:captcha, :ocr, '%.1f' % block.confidence)
         if block.confidence >= @min_ocr_confidence
           text = block.text.strip.gsub(/\s+/, ' ')
           logger.debug { 'Captcha text [%s] received from OCR engine with confidence [%.1f%%].' %  [text, block.confidence] }
@@ -91,10 +97,12 @@ class Plunder
         text = CGI.unescapeHTML(text).strip unless text.nil?
         if text.nil? || text.empty? || !captcha.id
           logger.warn { 'Captcha solving external service [2captcha.com] returned error.' }
+          stat(:captcha, :external, :failure)
           raise Plunder::CaptchaError, 'Captcha solving external service [2captcha.com] error.'
         end
         @last_captcha_id = captcha.id
         logger.debug { 'Captcha text [%s] received from external service [2captcha.com].' %  text }
+        stat(:captcha, :external, :answer, text)
         text
       end
     end
