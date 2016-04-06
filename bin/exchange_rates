@@ -1,0 +1,15 @@
+#!/usr/bin/env ruby
+
+require 'open-uri'
+require 'json'
+[:btc, :ltc, :doge].each do |currency|
+  tries = 3
+  begin
+    json = JSON.parse(open("https://www.cryptonator.com/api/ticker/#{currency}-usd") { |io| io.read })
+    puts '%s: %s' % [currency, json['ticker']['price']]
+  rescue => exc
+    tries -= 1
+    retry if tries > 0
+    puts '%s: %s (%s)' % [currency, exc.message, exc.class]
+  end
+end

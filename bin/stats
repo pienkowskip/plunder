@@ -1,0 +1,143 @@
+#!/usr/bin/env ruby
+
+require 'time'
+require 'csv'
+require 'bigdecimal_ext'
+
+class Stat
+  TIMESTAMP_FORMAT = '%FT%T.%6N'.freeze
+
+  attr_reader :timestamp, :pid, :type, :action, :params
+
+  def initialize(row)
+    raise ArgumentError, 'Invalid CSV row: too less columns.' if row.size < 4
+    @timestamp = Time.parse(row[0])
+    @pid = Integer(row[1])
+    @type = row[2].to_sym
+    @action = row[3].to_sym
+    @params = row[4..-1]
+  end
+end
+
+class StatsAggregate
+  def initialize(stats)
+    @stats = stats
+  end
+
+  def to_a
+    @stats
+  end
+
+  def filter(args = {})
+    StatsAggregate.new(@stats.select do |stat|
+      all = args.all? { |attr, value| get_attr(stat, attr) == value }
+      all = all && yield(stat) if block_given?
+      all
+    end)
+  end
+
+  def map(attr)
+    @stats.map { |stat| get_attr(stat, attr) }
+  end
+
+  def count
+    @stats.size
+  end
+
+  private
+
+  def get_attr(stat, attr)
+    return stat.public_send(attr) if attr.is_a?(Symbol) || attr.is_a?(String)
+    return stat.params[attr] if attr.is_a?(Integer)
+    raise ArgumentError, 'Not valid stat attribute.'
+  end
+end
+
+from, to = [ARGV[1], ARGV[2]].map { |i| i.nil? || i.strip.empty? ? nil : Time.parse(i.strip) }
+
+counts = Hash.new(0)
+stats = Hash.new { |hash, key| hash[key] = [] }
+
+CSV.foreach(ARGV[0]) do |row|
+  stat = Stat.new(row)
+  next if !from.nil? && stat.timestamp < from
+  next if !to.nil? && stat.timestamp >= to
+  counts[[stat.type, stat.action]] += 1
+  stats[stat.timestamp.to_date].push(stat)
+  stats[nil].push(stat)
+end
+puts 'given time range: %s  -  %s' % [from, to].map(&:inspect)
+puts 'stats real time range: %s  -  %s' % [stats[nil].to_a.first, stats[nil].to_a.last].map { |i| i.nil? ? i : i.timestamp }.map(&:inspect)
+puts nil
+
+EXCHANGE_RATES = {
+    satoshi: '421.44042949'.to_d / 100_000_000,
+    litoshi: '3.23623563'.to_d / 100_000_000,
+    dogecoin: '0.00021304'.to_d,
+    two_captcha: '-0.75'.to_d / 1000
+}
+
+def to_d(str)
+  Float(str)
+  str.to_d
+end
+
+def print_stats(date, stats)
+  stats = StatsAggregate.new(stats)
+  puts nil, '--- ' + date.to_s + ' ---'
+
+  claims = stats.filter(type: :claim)
+  puts 'claims: ' + [:success, :failure, :begin].map { |name| '%s: %d' % [name, claims.filter(action: name).count] }.join(', ')
+  claims = claims.filter(action: :success)
+  return if claims.count < 1
+
+  rates = EXCHANGE_RATES.map do |name, rate|
+    if name == :two_captcha
+      sum = stats.filter(type: :captcha, action: :external, 0 => 'answer').count.to_d
+      [name, sum, sum * rate, claims.count]
+    else
+      rows = claims.filter(2 => name.to_s)
+      sum = rows.map(4).map { |i| to_d(i) }.reduce(0, :+)
+      [name, sum, sum * rate, rows.count]
+    end
+  end
+
+  puts 'claims avg rates: ' + (rates.map do |name, sum, usd, count|
+    if count > 0
+      '%s: $%.6f (%.2f)' % [name, usd / count, sum / count]
+    else
+      '%s: no claims' % name
+    end
+  end).join(', ')
+
+  bonuses = Hash.new(0)
+  bonuses[:sum] = claims.map(5).map { |i| to_d(i) }.reduce(0, :+).to_d
+  claims.to_a.each do |stat|
+    stat.params[7..-1].each do |bonus|
+      md = bonus.match(/\A(.+): (-?\d+(\.\d+)?)\z/)
+      next unless md
+      bonuses[md[1]] += to_d(md[2])
+    end
+  end
+  puts 'bonuses avg: ' + bonuses.map { |name, value| '%s: %.2f%%' % [name, value / claims.count.to_d] }.join(', ')
+
+  usd_sum, usd_income = 0, 0
+  puts 'summary: ' + (rates.map do |name, sum, usd, _|
+    usd_sum += usd
+    usd_income += usd if usd > 0
+    '%s: $%.5f (%.1f)' % [name, usd, sum]
+  end).join(', ')
+  puts 'sum: $%.5f, income: $%.5f, rate: %.1f%%' % [usd_sum, usd_income, usd_sum / usd_income * 100]
+end
+
+counts.sort.each do |key, count|
+  puts key.join(' ') + ': ' + count.to_s
+end
+
+all = stats.delete(nil)
+stats.sort.each do |key, value|
+  print_stats(key, value)
+end
+print_stats('all', all)
+
+
