@@ -1,31 +1,33 @@
 require 'phashion'
 
 require_relative 'base'
-require_relative 'imageable'
 
 class Plunder::Captcha::Image < Plunder::Captcha::Base
-  include Plunder::Captcha::Imageable
 
   Pattern = Struct.new(:phash, :width, :height)
 
   VAR_PATH = File.absolute_path(File.join(File.dirname(__FILE__), '..', '..', '..', 'var')).freeze
 
-  def initialize(dm)
-    super
-    imageable_initialize(dm)
+  def initialize(dm, image_decoder)
+    super(dm)
+    @image_decoder = image_decoder
   end
 
   def solve(element)
     return false unless element.tag_name == 'img'
     logger.debug { 'Captcha recognized as image. Starting solving.' }
-    image = element_render(element)
+    image = element_image(element)
     if recognize(image)
       image.crop!(5, pattern.height + 2, image.width - 2 * 5, image.height - 3 - pattern.height - 2)
     else
       image.crop!(3, 3, image.width - 2 * 3, image.height - 2 * 3)
       logger.warn { 'Captcha image has unknown pattern. Trying to solve anyway.' }
     end
-    solve_captcha_image(image)
+    @image_decoder.decode(image)
+  end
+
+  def answer_rejected
+    @image_decoder.answer_rejected if @image_decoder.respond_to?(:answer_rejected)
   end
 
   private
@@ -36,7 +38,6 @@ class Plunder::Captcha::Image < Plunder::Captcha::Base
     tmp.close
     image_hash = Phashion.image_hash_for(tmp.path)
     hamming_distance = Phashion.hamming_distance(pattern.phash, image_hash)
-    logger.debug { 'Image captcha recognition - hamming distance: %d.' % [hamming_distance] }
     hamming_distance <= Phashion::Image::DEFAULT_DUPE_THRESHOLD
   ensure
     tmp.unlink

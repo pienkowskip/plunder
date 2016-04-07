@@ -116,14 +116,14 @@ class Plunder::MoonFaucet
 
   def solve_captcha(solving_tries = CAPTCHA_SOLVING_TRIES)
     dm.random.sleep(4.0..6.0)
-    dm.captcha_solver.solve
+    dm.captcha_solver.solve_captcha
   rescue Plunder::CaptchaError => exc
     solving_tries -= 1
     raise exc unless solving_tries > 0
     logger.debug { 'Captcha solving error. Retrying.' }
     popup = inline_rescue(Capybara::ElementNotFound, false) { browser.find(:id, 'CaptchaPopup') }
     if popup
-      popup.find(:id, 'adcopy-link-refresh').click
+      dm.captcha_solver.refresh_captcha(popup)
     else
       browser.find(:id, 'SubmitButton').click
     end

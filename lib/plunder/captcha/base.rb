@@ -1,3 +1,5 @@
+require 'chunky_png'
+
 require_relative '../utility/logging'
 require_relative '../errors'
 
@@ -18,6 +20,12 @@ class Plunder
       end
 
       def answer_rejected
+      end
+
+      protected
+
+      def element_image(element)
+        ChunkyPNG::Image.from_blob(dm.captcha_solver.render_element(element))
       end
     end
   end

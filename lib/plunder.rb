@@ -19,8 +19,8 @@ class Plunder
 
   def initialize(config_filename)
     @dm = DependencyManager.new
-    @dm.plunder = self
-    @dm.config = Config.new(config_filename).freeze
+    dm.plunder = self
+    dm.config = Config.new(config_filename).freeze
     stat(:application, :init)
   end
 

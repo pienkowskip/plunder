@@ -1,12 +1,10 @@
 require_relative 'base'
-require_relative 'imageable'
 
 class Plunder::Captcha::Canvas < Plunder::Captcha::Base
-  include Plunder::Captcha::Imageable
 
-  def initialize(dm)
-    super
-    imageable_initialize(dm)
+  def initialize(dm, image_decoder)
+    super(dm)
+    @image_decoder = image_decoder
   end
 
   def solve(element)
@@ -23,10 +21,14 @@ class Plunder::Captcha::Canvas < Plunder::Captcha::Base
       logger.debug { 'Captcha recognized as canvas. Starting solving.' }
       top = browser.evaluate_script('document.querySelector(\'#top\').clientHeight').to_i
     end
-    image = element_render(element)
+    image = element_image(element)
     image.crop!(4, top + 2, image.width - 2 * 4, image.height - top - 2)
-    solve_captcha_image(image)
+    @image_decoder.decode(image)
   rescue Capybara::ElementNotFound
     return false
+  end
+
+  def answer_rejected
+    @image_decoder.answer_rejected if @image_decoder.respond_to?(:answer_rejected)
   end
 end
