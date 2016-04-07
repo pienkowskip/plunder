@@ -49,18 +49,18 @@ class Plunder
           end
         end
         refreshes = 0
-        IMAGE_CAPTCHA_REFRESHES.times do
-          try_solve.call(@ocr_solvers)
-          break if answer
-          logger.debug { 'Provided captcha not solved by OCR engine. Refreshing.' }
+        try_solve.call(@ocr_solvers)
+        while !answer && refreshes < IMAGE_CAPTCHA_REFRESHES do
+          logger.debug { 'Provided captcha not solved by OCR based solvers. Refreshing.' }
           captcha = refresh_captcha(popup)
           refreshes += 1
+          try_solve.call(@ocr_solvers)
         end
         stat(:captcha, :captcha_refreshes, refreshes)
         if answer
-          logger.debug { 'Captcha solved by OCR engine after [%d] refreshes.' % refreshes }
+          logger.debug { 'Captcha solved by OCR based solvers after [%d] refreshes.' % refreshes }
         else
-          logger.debug { 'Captcha not solved by OCR engine. Solving by external service.' }
+          logger.debug { 'Captcha not solved by OCR based solvers. Using external service based solvers.' }
           try_solve.call(@external_service_solvers)
         end
         unless answer
