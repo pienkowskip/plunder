@@ -1,3 +1,5 @@
+require 'tesseract'
+
 require_relative '../../utility/logging'
 require_relative '../../utility/stats'
 require_relative '../../errors'
@@ -13,6 +15,13 @@ class Plunder
 
         def initialize(dm)
           @dm = dm
+          charset = 'abcdefghijklmnopqrstuvwxyz .,-\'!?'
+          @ocr_engines = [charset, charset.upcase].map do |whitelist|
+            Tesseract::Engine.new do |engine|
+              engine.language = :en
+              engine.whitelist = whitelist
+            end
+          end.zip([0, -15])
           @min_ocr_confidence = @dm.config.application.fetch(:min_ocr_confidence, DEFAULT_MIN_OCR_CONFIDENCE)
           begin
             @min_ocr_confidence = Float(@min_ocr_confidence)
@@ -24,32 +33,39 @@ class Plunder
 
         def decode(image)
           logger.debug { 'Solving captcha image via OCR engine.' }
-          block = @dm.ocr_engine.blocks_for(image)
-          unless block.size == 1
-            logger.warn { 'OCR engine returned invalid number of blocks. Should be one.' }
-            stat(:captcha, :ocr, :failure)
-            save_suspected_captcha(image)
-            return false
+          best_result = nil
+          @ocr_engines.each do |engine, confidence_factor|
+            result = ocr(image, engine)
+            next if result.nil?
+            result.push(result[1] + confidence_factor)
+            best_result = result if best_result.nil? || result[2] > best_result[2]
           end
-          block = block[0]
-          if block.text.nil?
+          if best_result.nil?
             logger.warn { 'OCR engine failed to solve captcha. Internal error.' }
             stat(:captcha, :ocr, :failure)
             save_suspected_captcha(image)
             return false
           end
-          stat(:captcha, :ocr, '%.1f' % block.confidence)
-          if block.confidence >= @min_ocr_confidence
-            text = block.text.strip.gsub(/\s+/, ' ')
-            logger.debug { 'Captcha text [%s] received from OCR engine with confidence [%.1f%%].' %  [text, block.confidence] }
+          text, confidence, _ = best_result
+          stat(:captcha, :ocr, '%.1f' % confidence)
+          if confidence >= @min_ocr_confidence
+            logger.debug { 'Captcha text [%s] received from OCR engine with confidence [%.1f%%].' %  [text, confidence] }
             text
           else
-            logger.debug { 'Confidence [%.1f%%] of captcha-solving OCR engine results is too low.' % block.confidence }
+            logger.debug { 'Confidence [%.1f%%] of captcha-solving OCR engine results is too low.' % confidence }
             false
           end
         end
 
         private
+
+        def ocr(image, engine)
+          block = engine.blocks_for(image)
+          return nil unless block.size == 1
+          block = block[0]
+          return nil if block.text.nil?
+          return block.text.strip.gsub(/\s+/, ' '), block.confidence
+        end
 
         def save_suspected_captcha(image)
           image.save(File.join(@dm.config.application[:error_log], 'captcha-ocr_engine_failure-%s.png' % Time.now.strftime('%FT%H%M%S'))) if @dm.config.application[:error_log]

@@ -4,9 +4,13 @@ require_relative 'base'
 
 class Plunder::Captcha::Image < Plunder::Captcha::Base
 
-  Pattern = Struct.new(:phash, :width, :height)
+  Pattern = Struct.new(:name, :phash, :position, :crop)
 
-  VAR_PATH = File.absolute_path(File.join(File.dirname(__FILE__), '..', '..', '..', 'var')).freeze
+  PATTERNS = [
+      ['enter_the_following.png', [0, 0], [5, 20, 5, 3]],
+      ['enter_the_answer.png', [0, 84], [3, 98, 3, 3]]
+  ].freeze
+  PATTERNS_DIR = File.absolute_path(File.join(File.dirname(__FILE__), '..', '..', '..', 'var', 'captcha_image_patterns')).freeze
 
   def initialize(dm, image_decoder)
     super(dm)
@@ -17,12 +21,14 @@ class Plunder::Captcha::Image < Plunder::Captcha::Base
     return false unless element.tag_name == 'img'
     logger.debug { 'Captcha recognized as image. Starting solving.' }
     image = element_image(element)
-    if recognize(image)
-      image.crop!(5, pattern.height + 2, image.width - 2 * 5, image.height - 3 - pattern.height - 2)
+    pattern = patterns.find { |p| recognize(image, p) }
+    if pattern
+      logger.debug { 'Recognized [%s] pattern in captcha image.' % pattern.name }
     else
-      image.crop!(3, 3, image.width - 2 * 3, image.height - 2 * 3)
       logger.warn { 'Captcha image has unknown pattern. Trying to solve anyway.' }
     end
+    crop = pattern ? pattern.crop : [3, 3, 3, 3]
+    image.crop!(crop[0], crop[1], image.width - crop[0] - crop[2], image.height - crop[1] - crop[3])
     @image_decoder.decode(image)
   end
 
@@ -32,23 +38,24 @@ class Plunder::Captcha::Image < Plunder::Captcha::Base
 
   private
 
-  def recognize(image)
+  def recognize(image, pattern)
     tmp = Tempfile.new(['captcha', '.png'])
-    image.crop(0, 0, pattern.width, pattern.height).write(tmp)
+    image.crop(*pattern.position).write(tmp)
     tmp.close
     image_hash = Phashion.image_hash_for(tmp.path)
-    hamming_distance = Phashion.hamming_distance(pattern.phash, image_hash)
-    hamming_distance <= Phashion::Image::DEFAULT_DUPE_THRESHOLD
+    Phashion.hamming_distance(pattern.phash, image_hash) <= Phashion::Image::DEFAULT_DUPE_THRESHOLD
   ensure
     tmp.unlink
   end
 
-  def pattern
-    return @pattern if @pattern
-    path = File.join(VAR_PATH, 'image_captcha_pattern.png')
-    image = ChunkyPNG::Image.from_file(path)
-    @pattern = Pattern.new(Phashion.image_hash_for(path), image.width, image.height)
-    logger.debug { 'Image captcha pattern initialized.' }
-    @pattern
+  def patterns
+    return @patterns if @patterns
+    @patterns = PATTERNS.map do |filename, pos, crop|
+      path = File.join(PATTERNS_DIR, filename)
+      image = ChunkyPNG::Image.from_file(path)
+      Pattern.new(filename.chomp('.png'), Phashion.image_hash_for(path), [pos[0], pos[1], image.width, image.height], crop)
+    end
+    logger.debug { 'Captcha images patterns initialized.' }
+    @patterns.freeze
   end
 end
