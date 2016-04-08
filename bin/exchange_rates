@@ -2,7 +2,7 @@
 
 require 'open-uri'
 require 'json'
-[:btc, :ltc, :doge].each do |currency|
+[:btc, :ltc, :doge, :rur].each do |currency|
   tries = 3
   begin
     json = JSON.parse(open("https://www.cryptonator.com/api/ticker/#{currency}-usd") { |io| io.read })

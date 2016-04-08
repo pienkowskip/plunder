@@ -35,7 +35,7 @@ class Plunder
           end
           @last_captcha_id = captcha.id
           logger.debug { 'Captcha text [%s] received from external service [2captcha.com]. Solving cost: [%s].' %  [text, ('%.5f' % captcha.cost rescue 'n/a')] }
-          stat(:captcha, :external, :answer, text)
+          stat(:captcha, :external, :response, captcha.id, text, captcha.cost)
           text
         end
 

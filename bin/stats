@@ -71,10 +71,10 @@ puts 'stats real time range: %s  -  %s' % [stats[nil].to_a.first, stats[nil].to_
 puts nil
 
 EXCHANGE_RATES = {
-    satoshi: '421.44042949'.to_d / 100_000_000,
-    litoshi: '3.23623563'.to_d / 100_000_000,
-    dogecoin: '0.00021304'.to_d,
-    two_captcha: '-0.75'.to_d / 1000
+    satoshi: '421.02115608'.to_d / 100_000_000,
+    litoshi: '3.22167811'.to_d / 100_000_000,
+    dogecoin: '0.00021450'.to_d,
+    two_captcha: '-0.01503994'.to_d
 }
 
 def to_d(str)
@@ -93,8 +93,9 @@ def print_stats(date, stats)
 
   rates = EXCHANGE_RATES.map do |name, rate|
     if name == :two_captcha
-      sum = stats.filter(type: :captcha, action: :external, 0 => 'answer').count.to_d
-      [name, sum, sum * rate, claims.count]
+      rows = stats.filter(type: :captcha, action: :external, 0 => 'response')
+      sum = rows.map(3).map { |i| i.nil? ? '-0.75'.to_d / 1000 : to_d(i) * rate }.tap {|a| puts a}.reduce(0, :+)
+      [name, rows.count, sum, claims.count]
     else
       rows = claims.filter(2 => name.to_s)
       sum = rows.map(4).map { |i| to_d(i) }.reduce(0, :+)
