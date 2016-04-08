@@ -2,11 +2,13 @@ require 'chunky_png'
 
 require_relative '../utility/logging'
 require_relative '../errors'
+require_relative 'logger'
 
 class Plunder
   module Captcha
     class Base
       include Plunder::Utility::Logging
+      include Plunder::Captcha::Logging
       extend Forwardable
 
       attr_reader :dm

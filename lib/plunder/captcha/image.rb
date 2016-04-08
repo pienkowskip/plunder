@@ -27,8 +27,10 @@ class Plunder::Captcha::Image < Plunder::Captcha::Base
     else
       logger.warn { 'Captcha image has unknown pattern. Trying to solve anyway.' }
     end
+    captcha_logger[:image_pattern] = pattern ? pattern.name : 'n/a'
     crop = pattern ? pattern.crop : [3, 3, 3, 3]
     image.crop!(crop[0], crop[1], image.width - crop[0] - crop[2], image.height - crop[1] - crop[3])
+    captcha_logger.cropped_image = image
     @image_decoder.decode(image)
   end
 

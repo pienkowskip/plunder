@@ -33,6 +33,7 @@ class Plunder::Captcha::Sponsored < Plunder::Captcha::Base
       raise Plunder::CaptchaError, 'Sponsored captcha code element background-image is not embedded PNG.' unless bg_image.start_with?(EMBEDDED_PNG_PREFIX) && bg_image.end_with?(EMBEDDED_PNG_SUFFIX)
       Base64.decode64(bg_image.slice(EMBEDDED_PNG_PREFIX.length..(-EMBEDDED_PNG_SUFFIX.length - 1)))
     end
+    captcha_logger.cropped_image = image
     text = ocr_engine.text_for(image).strip
     logger.debug { 'Sponsored captcha code text [%s] received from OCR engine.' % text }
     PROPER_PREFIXES.each do |prefix|

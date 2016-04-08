@@ -1,6 +1,7 @@
 require 'timeout'
 require 'base64'
 
+require_relative 'logger'
 require_relative 'sponsored'
 require_relative 'canvas'
 require_relative 'image'
@@ -16,6 +17,7 @@ class Plunder
     class Solver
       include Plunder::Utility::Logging
       include Plunder::Utility::Stats
+      include Plunder::Captcha::Logging
       extend Forwardable
 
       IMAGE_CAPTCHA_REFRESHES = 3
@@ -25,8 +27,17 @@ class Plunder
 
       def initialize(dm)
         @dm = dm
-        ocr_decoder = Plunder::Captcha::ImageDecoder::OCR.new(dm)
+
+        min_ocr_confidence = dm.config.application.fetch(:min_ocr_confidence, Plunder::Captcha::ImageDecoder::OCR::DEFAULT_MIN_OCR_CONFIDENCE)
+        begin
+          min_ocr_confidence = Float(min_ocr_confidence)
+          raise ArgumentError, 'not finite number' unless min_ocr_confidence.finite?
+        rescue
+          raise Plunder::ConfigEntryError.new('application.min_ocr_confidence', 'not a valid number')
+        end
+        ocr_decoder = Plunder::Captcha::ImageDecoder::OCR.new(min_ocr_confidence)
         external_service_decoder = Plunder::Captcha::ImageDecoder::ExternalService.new(dm.two_captcha_client)
+
         sponsored_solver = Plunder::Captcha::Sponsored.new(dm)
         @ocr_solvers = [sponsored_solver] + [Plunder::Captcha::Canvas, Plunder::Captcha::Image].map { |klass| klass.new(dm, ocr_decoder) }
         @external_service_solvers = [sponsored_solver] + [Plunder::Captcha::Canvas, Plunder::Captcha::Image].map { |klass| klass.new(dm, external_service_decoder) }
@@ -35,15 +46,16 @@ class Plunder
       def solve_captcha
         popup = browser.find(:id, 'CaptchaPopup')
         captcha = popup.find(:id, 'adcopy-puzzle-image-image')
-        answer, solved_by, captcha_image_blob = nil, nil
+        answer, solved_by = nil, nil
         try_solve = ->(solvers) do
-          captcha_image_blob = render_element(captcha)
+          captcha_logger.open_entry.image = render_element(captcha)
           solvers.each do |solver|
             answer = solver.solve(captcha)
             if answer
               solved_by = solver
               logger.debug { 'Captcha solved by [%s] solver.' % solved_by.class.name }
               stat(:captcha, :solved, solved_by.class)
+              captcha_logger[:solved_by] = solved_by.class
               break
             end
           end
@@ -53,6 +65,8 @@ class Plunder
         while !answer && refreshes < IMAGE_CAPTCHA_REFRESHES do
           logger.debug { 'Provided captcha not solved by OCR based solvers. Refreshing.' }
           captcha = refresh_captcha(popup)
+          captcha_logger[:status] = :refreshed
+          captcha_logger.log_entry
           refreshes += 1
           try_solve.call(@ocr_solvers)
         end
@@ -66,10 +80,12 @@ class Plunder
         unless answer
           logger.warn { 'Captcha type not recognized.' }
           stat(:captcha, :unrecognized)
+          captcha_logger[:status] = :unrecognized
           raise Plunder::CaptchaError, 'Captcha type not recognized.'
         end
         answer.force_encoding(Encoding::UTF_8)
         logger.debug { 'Submitting captcha answer [%s].' % answer }
+        captcha_logger[:answer] = answer
         popup.find(:id, 'adcopy_response').send_keys(answer, :Enter)
         inline_rescue(Timeout::Error) do
           Timeout.timeout(dm.config.browser.fetch(:timeout, 30) / 3.0) do
@@ -79,22 +95,20 @@ class Plunder
         if has_result?('BodyPlaceholder_SuccessfulClaimPanel')
           logger.info { 'Captcha correctly solved. Answer [%s] accepted.' % answer }
           stat(:captcha, :accepted, answer)
+          captcha_logger[:status] = :accepted
           solved_by.answer_accepted
           return true
         end
         if has_result?('BodyPlaceholder_FailedClaimPanel')
           logger.warn { 'Captcha incorrectly solved. Answer [%s] rejected.' % answer }
-          begin
-            File.write(File.join(dm.config.application[:error_log], 'captcha-rejected_answer-%s.png' % Time.now.strftime('%FT%H%M%S')),
-                       captcha_image_blob) if dm.config.application[:error_log]
-          rescue => exc
-            raise Plunder::ApplicationError, 'Cannot save image of captcha of rejected answer. Error: %s (%s).' % [exc.message, exc.class]
-          end
           stat(:captcha, :rejected, answer)
+          captcha_logger[:status] = :rejected
           solved_by.answer_rejected
           raise Plunder::CaptchaError, 'Captcha incorrectly solved. Answer [%s] rejected.' % answer
         end
         raise Plunder::AfterClaimError, 'Unable to find captcha answer correctness element.'
+      ensure
+        captcha_logger.log_entry if captcha_logger.has_entry?
       end
 
       def refresh_captcha(popup = nil)

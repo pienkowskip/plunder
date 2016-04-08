@@ -16,6 +16,7 @@ class Plunder::Captcha::Canvas < Plunder::Captcha::Base
       if slog.tag_name == 'span'
         text = slog.text.strip
         logger.debug { 'Captcha recognized as span with text [%s].' % text }
+        captcha_logger[:canvas_with_span] = true
         return text
       end
       logger.debug { 'Captcha recognized as canvas. Starting solving.' }
@@ -23,6 +24,7 @@ class Plunder::Captcha::Canvas < Plunder::Captcha::Base
     end
     image = element_image(element)
     image.crop!(4, top + 2, image.width - 2 * 4, image.height - top - 2)
+    captcha_logger.cropped_image = image
     @image_decoder.decode(image)
   rescue Capybara::ElementNotFound
     return false

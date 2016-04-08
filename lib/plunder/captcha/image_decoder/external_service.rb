@@ -3,6 +3,7 @@ require 'cgi'
 require_relative '../../utility/logging'
 require_relative '../../utility/stats'
 require_relative '../../errors'
+require_relative '../logger'
 
 class Plunder
   module Captcha
@@ -10,6 +11,7 @@ class Plunder
       class ExternalService
         include Plunder::Utility::Logging
         include Plunder::Utility::Stats
+        include Plunder::Captcha::Logging
 
         BIG_CAPTCHA_SIZE = 400
 
@@ -36,6 +38,8 @@ class Plunder
           @last_captcha_id = captcha.id
           logger.debug { 'Captcha text [%s] received from external service [2captcha.com]. Solving cost: [%s].' %  [text, ('%.5f' % captcha.cost rescue 'n/a')] }
           stat(:captcha, :external, :response, captcha.id, text, captcha.cost)
+          captcha_logger[:external_service_id] = captcha.id
+          captcha_logger[:external_service_cost] = captcha.cost
           text
         end
 

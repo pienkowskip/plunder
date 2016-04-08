@@ -1,6 +1,7 @@
 require 'yaml'
 require_relative 'utility/logging'
 require_relative 'utility/stats'
+require_relative 'captcha/logger'
 require_relative 'errors'
 
 class Plunder::Config
@@ -23,6 +24,7 @@ class Plunder::Config
     end
     setup_logger
     setup_stats
+    setup_captcha_logger
   end
 
   private
@@ -47,6 +49,13 @@ class Plunder::Config
     true
   rescue => err
     raise Plunder::ConfigEntryError.new('application.stats_file', err)
+  end
+
+  def setup_captcha_logger
+    Plunder::Captcha::Logging.setup(application[:captcha_log])
+    true
+  rescue => err
+    raise Plunder::ConfigEntryError.new('application.captcha_log', err)
   end
 
   def deep_symbolize_keys(hash)
