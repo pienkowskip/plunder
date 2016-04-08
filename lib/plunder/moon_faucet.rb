@@ -72,7 +72,7 @@ class Plunder::MoonFaucet
     raise Plunder::BrowserError, 'Request failed to reach the server. Check networking and/or server status.'
   rescue Plunder::Error, Plunder::ApplicationError => exc
     raise exc
-  rescue Errno::ECONNRESET, Capybara::Poltergeist::DeadClient => exc
+  rescue Errno::ECONNRESET, Errno::EPIPE, Capybara::Poltergeist::DeadClient => exc
     raise Plunder::FatalBrowserError, 'Browser error occurred: %s (%s). Restart is required.' % [exc.message, exc.class]
   rescue => exc
     raise Plunder::ApplicationError, 'Unknown error occurred during claiming: %s (%s).' % [exc.message, exc.class]

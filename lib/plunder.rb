@@ -101,7 +101,7 @@ class Plunder
     true
   rescue Capybara::Poltergeist::TimeoutError => exc
     raise Plunder::BrowserError, 'Timed out waiting for response to [%s].' % exc.instance_variable_get(:@message)
-  rescue Errno::ECONNRESET, Capybara::Poltergeist::DeadClient => exc
+  rescue Errno::ECONNRESET, Errno::EPIPE, Capybara::Poltergeist::DeadClient => exc
     raise Plunder::FatalBrowserError, 'Browser error occurred: %s (%s).' % [exc.message, exc.class]
   rescue => exc
     raise ApplicationError, 'Unknown error occurred during diagnostic dump: %s (%s).' % [exc.message, exc.class]
