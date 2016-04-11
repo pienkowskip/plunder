@@ -24,7 +24,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'phashion'
   spec.add_runtime_dependency 'tesseract-ocr', '~> 0.1.9'
   spec.add_runtime_dependency 'two_captcha', '~> 1.1'
-  spec.add_runtime_dependency 'poltergeist'
+  spec.add_runtime_dependency 'poltergeist', '~> 1.9'
   spec.add_runtime_dependency 'pqueue'
 
   spec.add_development_dependency 'bundler', '~> 1.3'

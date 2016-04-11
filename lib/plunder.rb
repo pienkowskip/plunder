@@ -46,6 +46,7 @@ class Plunder
         Capybara.register_driver(webdriver) do |app|
           driver = Capybara::Poltergeist::Driver.new(app, options)
           driver.add_header('User-Agent', browser_cfg[:user_agent]) if browser_cfg.include?(:user_agent)
+          [:url_whitelist, :url_blacklist].each { |list| driver.browser.public_send(:"#{list}=", browser_cfg[list]) if browser_cfg.include?(list) }
           driver
         end
         dm.browser = Capybara::Session.new(webdriver)
@@ -95,7 +96,7 @@ class Plunder
       end
     end
     if browser?
-      browser.save_screenshot(path + '.png', full: true)
+      browser.save_screenshot(path + '.jpg', full: true)
       File.write(path + '.html', browser.html)
     end
     true
