@@ -58,7 +58,7 @@ from, to = [ARGV[1], ARGV[2]].map { |i| i.nil? || i.strip.empty? ? nil : Time.pa
 counts = Hash.new(0)
 stats = Hash.new { |hash, key| hash[key] = [] }
 
-CSV.foreach(ARGV[0]) do |row|
+CSV.foreach(ARGV[0], encoding: 'UTF-8') do |row|
   stat = Stat.new(row)
   next if !from.nil? && stat.timestamp < from
   next if !to.nil? && stat.timestamp >= to
@@ -94,8 +94,8 @@ def print_stats(date, stats)
   rates = EXCHANGE_RATES.map do |name, rate|
     if name == :two_captcha
       rows = stats.filter(type: :captcha, action: :external, 0 => 'response')
-      sum = rows.map(3).map { |i| i.nil? ? '-0.75'.to_d / 1000 : to_d(i) * rate }.tap {|a| puts a}.reduce(0, :+)
-      [name, rows.count, sum, claims.count]
+      sum = rows.map(3).map { |i| i.nil? ? '-0.75'.to_d / 1000 : to_d(i) * rate }.reduce(0, :+)
+      [name, rows.count.to_d, sum, claims.count]
     else
       rows = claims.filter(2 => name.to_s)
       sum = rows.map(4).map { |i| to_d(i) }.reduce(0, :+)
