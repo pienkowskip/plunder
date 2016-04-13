@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ['Paweł Pieńkowski']
   spec.email         = ['pienkowskip@gmail.com']
   spec.summary       = 'Various online money-making bots'
-  spec.description   = <<-EOF
+  spec.description   = <<-EOF.gsub(/^\s+/, '')
     Various online money-making bots. Uses Capybara, PhantomJS & external captcha solving service to headlessly claim
     rewards in online money-making systems.
   EOF

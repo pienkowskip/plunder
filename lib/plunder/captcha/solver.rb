@@ -27,6 +27,7 @@ class Plunder
 
       def initialize(dm)
         @dm = dm
+        @sub_timeout = dm.config.browser.fetch(:timeout, 30) / 3.0
 
         min_ocr_confidence = dm.config.application.fetch(:min_ocr_confidence, Plunder::Captcha::ImageDecoder::OCR::DEFAULT_MIN_OCR_CONFIDENCE)
         begin
@@ -48,7 +49,6 @@ class Plunder
         captcha = popup.find(:id, 'adcopy-puzzle-image-image')
         answer, solved_by = nil, nil
         try_solve = ->(solvers) do
-          captcha_logger.open_entry.image = render_element(captcha)
           solvers.each do |solver|
             answer = solver.solve(captcha)
             if answer
@@ -61,6 +61,7 @@ class Plunder
           end
         end
         refreshes = 0
+        handle_new_captcha(captcha)
         try_solve.call(@ocr_solvers)
         while !answer && refreshes < IMAGE_CAPTCHA_REFRESHES do
           logger.debug { 'Provided captcha not solved by OCR based solvers. Refreshing.' }
@@ -68,6 +69,7 @@ class Plunder
           captcha_logger[:status] = :refreshed
           captcha_logger.log_entry
           refreshes += 1
+          handle_new_captcha(captcha)
           try_solve.call(@ocr_solvers)
         end
         stat(:captcha, :captcha_refreshes, refreshes)
@@ -88,7 +90,7 @@ class Plunder
         captcha_logger[:answer] = answer
         popup.find(:id, 'adcopy_response').send_keys(answer, :Enter)
         inline_rescue(Timeout::Error) do
-          Timeout.timeout(dm.config.browser.fetch(:timeout, 30) / 3.0) do
+          Timeout.timeout(@sub_timeout) do
             nil until has_result?('BodyPlaceholder_SuccessfulClaimPanel') || has_result?('BodyPlaceholder_FailedClaimPanel')
           end
         end
@@ -118,9 +120,9 @@ class Plunder
         src = captcha_src(captcha)
         popup.find(:id, 'adcopy-link-refresh').click
         begin
-          Timeout.timeout(dm.config.browser.fetch(:timeout, 30) / 3.0) do
+          Timeout.timeout(@sub_timeout) do
             begin
-              sleep(0.5)
+              sleep(0.3)
               captcha.reload
             end while captcha_src(captcha) == src
           end
@@ -150,6 +152,32 @@ class Plunder
         nil
       rescue Capybara::ElementNotFound
         return nil
+      end
+
+      def handle_new_captcha(captcha_element)
+        if captcha_not_loaded?(captcha_element).nil?
+          dm.random.sleep(0.5..1.0) # wait a little bit because loading status cannot be determined
+        else
+          begin
+            Timeout.timeout(@sub_timeout) { sleep(0.5) while captcha_not_loaded?(captcha_element) }
+          rescue Timeout::Error
+            raise Plunder::BeforeClaimError, 'Timed out waiting for captcha image to load.'
+          end
+        end
+        captcha_logger.open_entry.image = render_element(captcha_element)
+      end
+
+      def captcha_not_loaded?(captcha_element)
+        return nil unless captcha_element.tag_name == 'img'
+        raise Plunder::CaptchaError, 'Cannot check loading status for image without id.' unless captcha_element[:id] && !captcha_element[:id].to_s.empty?
+        browser.evaluate_script(<<-JAVASCRIPT)
+          (function() {
+            var img = document.getElementById("#{captcha_element[:id]}");
+            if (!img.complete) { return true; }
+            if (img.naturalWidth === 0) { return true; }
+            return false;
+          })()
+        JAVASCRIPT
       end
     end
   end
