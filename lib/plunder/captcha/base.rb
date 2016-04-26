@@ -3,6 +3,7 @@ require 'chunky_png'
 require_relative '../utility/logging'
 require_relative '../errors'
 require_relative 'logger'
+require_relative 'simplifier'
 
 class Plunder
   module Captcha
@@ -13,9 +14,12 @@ class Plunder
 
       attr_reader :dm
       def_delegators :@dm, :browser
+      def_delegators :@simplifier, :simplify_image!
+      protected :simplify_image!
 
       def initialize(dm)
         @dm = dm
+        @simplifier = Plunder::Captcha::Simplifier.new
       end
 
       def answer_accepted

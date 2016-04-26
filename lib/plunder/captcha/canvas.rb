@@ -23,7 +23,8 @@ class Plunder::Captcha::Canvas < Plunder::Captcha::Base
       top = browser.evaluate_script('document.querySelector(\'#top\').clientHeight').to_i
     end
     image = element_image(element)
-    image.crop!(4, top + 2, image.width - 2 * 4, image.height - top - 2)
+    image.crop!(5, top + 2, image.width - 2 * 5, image.height - top - 2)
+    simplify_image!(image)
     captcha_logger.cropped_image = image
     @image_decoder.decode(image)
   rescue Capybara::ElementNotFound

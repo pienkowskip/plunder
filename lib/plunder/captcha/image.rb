@@ -7,8 +7,8 @@ class Plunder::Captcha::Image < Plunder::Captcha::Base
   Pattern = Struct.new(:name, :phash, :position, :crop)
 
   PATTERNS = [
-      ['enter_the_following.png', [0, 0], [5, 20, 5, 3]],
-      ['enter_the_answer.png', [0, 84], [3, 98, 3, 3]]
+      ['enter_the_following.png', [0, 0], [6, 18, 6, 0]],
+      ['enter_the_answer.png', [0, 84], [6, 98, 6, 0]]
   ].freeze
   PATTERNS_DIR = File.absolute_path(File.join(File.dirname(__FILE__), '..', '..', '..', 'var', 'captcha_image_patterns')).freeze
 
@@ -28,8 +28,9 @@ class Plunder::Captcha::Image < Plunder::Captcha::Base
       logger.warn { 'Captcha image has unknown pattern. Trying to solve anyway.' }
     end
     captcha_logger[:image_pattern] = pattern ? pattern.name : 'n/a'
-    crop = pattern ? pattern.crop : [3, 3, 3, 3]
+    crop = pattern ? pattern.crop : [4, 1, 4, 1]
     image.crop!(crop[0], crop[1], image.width - crop[0] - crop[2], image.height - crop[1] - crop[3])
+    simplify_image!(image)
     captcha_logger.cropped_image = image
     @image_decoder.decode(image)
   end
