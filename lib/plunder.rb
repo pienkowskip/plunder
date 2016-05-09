@@ -27,8 +27,8 @@ class Plunder
   def setup_browser
     browser_cfg = dm.config.browser
     Capybara.ignore_hidden_elements = true
-    Capybara.default_max_wait_time = browser_cfg.fetch(:element_timeout, 2)
-    webdriver = browser_cfg.fetch(:webdriver).to_sym
+    Capybara.default_max_wait_time = browser_cfg.element_timeout.fetch_f(2)
+    webdriver = browser_cfg.webdriver.fetch.to_sym
     case webdriver
       when :poltergeist
         options = {
@@ -39,21 +39,21 @@ class Plunder
             # logger: STDOUT,
             # phantomjs_logger: STDOUT,
         }
-        options[:phantomjs] = File.absolute_path(browser_cfg[:binary_path]) if browser_cfg.include?(:binary_path)
-        options[:phantomjs_options].push('--cookies-file=%s' % File.absolute_path(browser_cfg[:cookies_path])) if browser_cfg.include?(:cookies_path)
-        options[:timeout] = browser_cfg[:timeout] if browser_cfg.include?(:timeout)
-        options[:phantomjs_options].concat([*browser_cfg.fetch(:phantomjs_options, [])])
+        options[:phantomjs] = File.absolute_path(browser_cfg.binary_path.fetch) if browser_cfg.binary_path.exist?
+        options[:phantomjs_options].push('--cookies-file=%s' % File.absolute_path(browser_cfg.cookies_path.fetch)) if browser_cfg.cookies_path.exist?
+        options[:timeout] = browser_cfg.timeout.fetch_f if browser_cfg.timeout.exist?
+        options[:phantomjs_options].concat([*browser_cfg.phantomjs_options.fetch([])])
         Capybara.register_driver(webdriver) do |app|
           driver = Capybara::Poltergeist::Driver.new(app, options)
-          driver.add_header('User-Agent', browser_cfg[:user_agent]) if browser_cfg.include?(:user_agent)
-          [:url_whitelist, :url_blacklist].each { |list| driver.browser.public_send(:"#{list}=", browser_cfg[list]) if browser_cfg.include?(list) }
+          driver.add_header('User-Agent', browser_cfg.user_agent.fetch) if browser_cfg.user_agent.exist?
+          [:url_whitelist, :url_blacklist].each { |list| driver.browser.public_send(:"#{list}=", browser_cfg.nested(list).fetch) if browser_cfg.nested(list).exist? }
           driver
         end
         dm.browser = Capybara::Session.new(webdriver)
       when :webkit
         dm.browser = Capybara::Session.new(webdriver)
       else
-        raise ConfigEntryError, 'Unsupported browser [%s] webdriver.' % webdriver
+        raise ConfigError, 'Unsupported browser [%s] webdriver.' % webdriver
     end
     logger.debug { 'Browser [%s] was set up.' % browser.mode }
     browser
@@ -84,8 +84,8 @@ class Plunder
   def diagnostic_dump(exception = nil, path = nil)
     time = Time.new
     if path.nil?
-      return false unless dm.config.application[:error_log]
-      path = File.join(dm.config.application[:error_log], Time.now.strftime('%FT%H%M%S'))
+      return false unless dm.config.application.error_log.exist?
+      path = File.join(dm.config.application.error_log.fetch, Time.now.strftime('%FT%H%M%S'))
     end
     if exception
       File.open(path + '.txt', 'a') do |io|

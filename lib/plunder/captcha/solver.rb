@@ -20,22 +20,17 @@ class Plunder
       include Plunder::Captcha::Logging
       extend Forwardable
 
-      IMAGE_CAPTCHA_REFRESHES = 3
+      DEFAULT_MAX_CAPTCHA_REFRESHES = 3
 
-      attr_reader :dm, :solvers
+      attr_reader :dm
       def_delegators :@dm, :browser
 
       def initialize(dm)
         @dm = dm
-        @sub_timeout = dm.config.browser.fetch(:timeout, 30) / 3.0
+        @sub_timeout = dm.config.browser.timeout.fetch_f(30) / 3.0
+        @max_captcha_refreshes = dm.config.application.captcha.ocr.max_refreshes.fetch_i(DEFAULT_MAX_CAPTCHA_REFRESHES)
 
-        min_ocr_confidence = dm.config.application.fetch(:min_ocr_confidence, Plunder::Captcha::ImageDecoder::OCR::DEFAULT_MIN_OCR_CONFIDENCE)
-        begin
-          min_ocr_confidence = Float(min_ocr_confidence)
-          raise ArgumentError, 'not finite number' unless min_ocr_confidence.finite?
-        rescue
-          raise Plunder::ConfigEntryError.new('application.min_ocr_confidence', 'not a valid number')
-        end
+        min_ocr_confidence = dm.config.application.captcha.ocr.min_confidence.fetch_f(Plunder::Captcha::ImageDecoder::OCR::DEFAULT_MIN_OCR_CONFIDENCE)
         ocr_decoder = Plunder::Captcha::ImageDecoder::OCR.new(min_ocr_confidence)
         external_service_decoder = Plunder::Captcha::ImageDecoder::ExternalService.new(dm.two_captcha_client)
 
@@ -63,7 +58,7 @@ class Plunder
         refreshes = 0
         handle_new_captcha(captcha)
         try_solve.call(@ocr_solvers)
-        while !answer && refreshes < IMAGE_CAPTCHA_REFRESHES do
+        while !answer && refreshes < @max_captcha_refreshes do
           logger.debug { 'Provided captcha not solved by OCR based solvers. Refreshing.' }
           captcha = refresh_captcha(popup)
           captcha_logger[:status] = :refreshed

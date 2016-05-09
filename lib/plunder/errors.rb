@@ -5,12 +5,12 @@ class Plunder
   end
 
   class ConfigError < ApplicationError
-  end
-
-  class ConfigEntryError < ConfigError
-    def initialize(entry_name, cause)
-      msg = "#{entry_name} configuration entry invalid"
-      msg << ' - ' << cause.to_s unless cause.to_s.empty?
+    def initialize(msg = nil, entry_name = nil, cause = nil)
+      if msg.nil? && !entry_name.nil?
+        msg = 'Configuration entry [%s] invalid' % entry_name
+        msg << ': ' << cause.to_s.strip unless cause.to_s.empty?
+        msg << '.' unless msg.end_with?('.')
+      end
       super(msg)
     end
   end

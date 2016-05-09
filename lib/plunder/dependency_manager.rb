@@ -12,12 +12,7 @@ class Plunder::DependencyManager
       browser: nil,
       captcha_solver: ->(dm) { Plunder::Captcha::Solver.new(dm) },
       two_captcha_client: ->(dm) do
-        api_key = begin
-          dm.config.auth.fetch(:'2captcha.com').fetch(:api_key)
-        rescue KeyError
-          raise Plunder::ConfigEntryError, 'Configuration of 2captcha.com API invalid. Lack of authentication key.'
-        end
-        TwoCaptcha.new(api_key, timeout: 120)
+        TwoCaptcha.new(dm.config.auth.nested('2captcha.com').api_key.fetch, timeout: 120)
       end,
       random: ->(_) do
         Plunder::Utility::Random.new

@@ -5,12 +5,80 @@ require_relative 'captcha/logger'
 require_relative 'errors'
 
 class Plunder::Config
+  class Fetcher
+    def initialize(config, path)
+      @config = config
+      @path = path.freeze
+    end
+
+    def nested(name)
+      name = name.to_sym rescue name
+      Fetcher.new(@config, @path + [name])
+    end
+
+    def method_missing(name, *args)
+      nested(name, *args)
+    end
+
+    def fetch(*args)
+      default = if args.size == 0
+                  [false, nil]
+                elsif args.size == 1
+                  [true, args[0]]
+                else
+                  raise ArgumentError, 'wrong number of arguments (%d for max 1)' % args.size
+                end
+      config = @config
+      @path.each do |key|
+        unless config.is_a?(Hash) && config.include?(key)
+          return default[1] if default[0]
+          raise Plunder::ConfigError, 'Configuration entry [%s] missing.' % path_to_s
+        end
+        config = config[key]
+      end
+      config
+    end
+
+    def fetch_i(*args)
+      value = fetch(*args)
+      begin
+        Integer(value)
+      rescue ArgumentError
+        raise Plunder::ConfigError.new(nil, path_to_s, 'not a valid integer')
+      end
+    end
+
+    def fetch_f(*args)
+      value = fetch(*args)
+      begin
+        value = Float(value)
+        raise ArgumentError, 'not finite number' unless value.finite?
+        value
+      rescue ArgumentError
+        raise Plunder::ConfigError.new(nil, path_to_s, 'not a valid number')
+      end
+    end
+
+    def exist?
+      config = @config
+      @path.each do |key|
+        return false unless config.is_a?(Hash) && config.include?(key)
+        config = config[key]
+      end
+      true
+    end
+
+    private
+
+    def path_to_s
+      @path.join('.')
+    end
+  end
+
   DEV_MAP = {
       '<stdout>' => STDOUT,
       '<stderr>' => STDERR
   }.freeze
-
-  attr_reader :application, :auth, :browser
 
   def initialize(fname)
     begin
@@ -18,44 +86,46 @@ class Plunder::Config
     rescue SyntaxError
       raise Plunder::ConfigError, 'Configuration file has invalid syntax. Proper YAML required.'
     end
-    [:application, :auth, :browser].each do |key|
-      raise Plunder::ConfigError, "Configuration file not sufficient: missing [#{key}] entry." unless config.include?(key)
-      instance_variable_set :"@#{key}", config[key].freeze
-    end
-    setup_logger
-    setup_stats
-    setup_captcha_logger
+    @fetcher = Fetcher.new(config, [])
+    setup_wrapper('application.logger') { setup_logger }
+    setup_wrapper('application.stats_file') { setup_stats }
+    setup_wrapper('application.captcha.log') { setup_captcha_logger }
+  end
+
+  def method_missing(name, *args)
+    @fetcher.public_send(name, *args)
   end
 
   private
 
   def setup_logger
-    return false unless application.include?(:logger)
-    logger = application[:logger]
-    file = logger.fetch(:file)
+    return false unless application.logger.exist?
+    file = application.logger.file.fetch
     file = DEV_MAP[file.downcase] if DEV_MAP.include?(file.downcase)
-    level = Logger::Severity.const_get(logger.fetch(:level).upcase.to_sym, false)
+    level = Logger::Severity.const_get(application.logger.level.fetch.upcase.to_sym, false)
     Plunder::Utility::Logging.setup(file, level)
     true
-  rescue => err
-    raise Plunder::ConfigEntryError.new('application.logger', err)
   end
 
   def setup_stats
-    return false unless application.include?(:stats_file)
-    file = application[:stats_file]
+    return false unless application.stats_file.exist?
+    file = application.stats_file.fetch
     file = DEV_MAP.include?(file.downcase) ? DEV_MAP[file.downcase] : File.open(file, 'a')
     Plunder::Utility::Stats.setup(file)
     true
-  rescue => err
-    raise Plunder::ConfigEntryError.new('application.stats_file', err)
   end
 
   def setup_captcha_logger
-    Plunder::Captcha::Logging.setup(application[:captcha_log])
+    Plunder::Captcha::Logging.setup(application.captcha.log.fetch(nil))
     true
+  end
+
+  def setup_wrapper(entry_name)
+    yield
+  rescue Plunder::ConfigError => err
+    raise err
   rescue => err
-    raise Plunder::ConfigEntryError.new('application.captcha_log', err)
+    raise Plunder::ConfigError.new(nil, entry_name, err)
   end
 
   def deep_symbolize_keys(hash)

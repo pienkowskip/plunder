@@ -32,7 +32,7 @@ class Plunder::MoonFaucet
     end
   end
 
-  CAPTCHA_SOLVING_TRIES = 3
+  DEFAULT_CAPTCHA_SOLVING_TRIES = 3
 
   attr_reader :dm, :url, :address
   def_delegators :@dm, :browser
@@ -60,7 +60,7 @@ class Plunder::MoonFaucet
       logger.debug { 'Beginning to perform claim for [%s].' % address }
       stat(:claim, :begin, url, address)
       browser.find(:id, 'SubmitButton').click
-      solve_captcha
+      solve_captcha(dm.config.application.captcha.solving_tries.fetch_i(DEFAULT_CAPTCHA_SOLVING_TRIES))
     rescue Capybara::ElementNotFound => exc
       raise Plunder::BeforeClaimError, 'Element required in claiming flow not found (%s).' % exc.message
     end
@@ -114,7 +114,7 @@ class Plunder::MoonFaucet
     true
   end
 
-  def solve_captcha(solving_tries = CAPTCHA_SOLVING_TRIES)
+  def solve_captcha(solving_tries)
     dm.random.sleep(4.0..6.0)
     dm.captcha_solver.solve_captcha
   rescue Plunder::CaptchaError => exc
