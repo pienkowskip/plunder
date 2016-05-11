@@ -15,9 +15,11 @@ class Plunder
 
         BIG_CAPTCHA_SIZE = 400
 
-        def initialize(two_captcha_client)
+        attr_reader :dm
+
+        def initialize(dm)
           @last_captcha_id = nil
-          @two_captcha_client = two_captcha_client
+          @dm = dm
         end
 
         def decode(image)
@@ -27,7 +29,7 @@ class Plunder
             image = image.resample_bilinear(new_width.round, (size - new_width).round)
           end
           logger.debug { 'Bypassing captcha image to external service [2captcha.com].' }
-          captcha = @two_captcha_client.decode(raw: image.to_blob) #TODO: Handle TwoCaptcha exceptions like timeout.
+          captcha = dm.two_captcha_client.decode(raw: image.to_blob) #TODO: Handle TwoCaptcha exceptions like timeout.
           text = captcha.text
           text = CGI.unescapeHTML(text).strip unless text.nil?
           if text.nil? || text.empty? || !captcha.id
@@ -35,6 +37,7 @@ class Plunder
             stat(:captcha, :external, :failure)
             raise Plunder::CaptchaError, 'Captcha solving external service [2captcha.com] error.'
           end
+          dm.interval_adjuster.report(:external_service)
           @last_captcha_id = captcha.id
           logger.debug { 'Captcha text [%s] received from external service [2captcha.com]. Solving cost: [%s].' %  [text, ('%.5f' % captcha.cost rescue 'n/a')] }
           stat(:captcha, :external, :response, captcha.id, text, captcha.cost)
@@ -47,7 +50,7 @@ class Plunder
           if @last_captcha_id
             logger.info { 'Reporting incorrect answer of captcha [%s] to external service [2captcha.com].' % @last_captcha_id }
             stat(:captcha, :external, :report, @last_captcha_id)
-            @two_captcha_client.report!(@last_captcha_id)
+            dm.two_captcha_client.report!(@last_captcha_id)
           end
         end
       end

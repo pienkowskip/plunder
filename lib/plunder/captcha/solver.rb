@@ -32,7 +32,7 @@ class Plunder
 
         min_ocr_confidence = dm.config.application.captcha.ocr.min_confidence.fetch_f(Plunder::Captcha::ImageDecoder::OCR::DEFAULT_MIN_OCR_CONFIDENCE)
         ocr_decoder = Plunder::Captcha::ImageDecoder::OCR.new(min_ocr_confidence)
-        external_service_decoder = Plunder::Captcha::ImageDecoder::ExternalService.new(dm.two_captcha_client)
+        external_service_decoder = Plunder::Captcha::ImageDecoder::ExternalService.new(dm)
 
         sponsored_solver = Plunder::Captcha::Sponsored.new(dm)
         @ocr_solvers = [sponsored_solver] + [Plunder::Captcha::Canvas, Plunder::Captcha::Image].map { |klass| klass.new(dm, ocr_decoder) }
@@ -92,6 +92,7 @@ class Plunder
         if has_result?('BodyPlaceholder_SuccessfulClaimPanel')
           logger.info { 'Captcha correctly solved. Answer [%s] accepted.' % answer }
           stat(:captcha, :accepted, answer)
+          dm.interval_adjuster.report(:answer_accepted)
           captcha_logger[:status] = :accepted
           solved_by.answer_accepted
           return true
@@ -99,6 +100,7 @@ class Plunder
         if has_result?('BodyPlaceholder_FailedClaimPanel')
           logger.warn { 'Captcha incorrectly solved. Answer [%s] rejected.' % answer }
           stat(:captcha, :rejected, answer)
+          dm.interval_adjuster.report(:answer_rejected)
           captcha_logger[:status] = :rejected
           solved_by.answer_rejected
           raise Plunder::CaptchaError, 'Captcha incorrectly solved. Answer [%s] rejected.' % answer
@@ -159,6 +161,7 @@ class Plunder
             raise Plunder::BeforeClaimError, 'Timed out waiting for captcha image to load.'
           end
         end
+        dm.interval_adjuster.report(:captcha_loaded)
         captcha_logger.open_entry.image = render_element(captcha_element)
       end
 

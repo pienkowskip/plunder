@@ -25,10 +25,21 @@ class Plunder::MoonFaucet
 
   GaussianClaimInterval = Struct.new(:mean, :std_dev, :min) do
     def interval(dm)
-      interval = dm.random.gauss_rand(mean, std_dev)
+      apply_min(dm.random.gauss_rand(mean, std_dev))
+    end
+
+    protected
+
+    def apply_min(interval)
       return min if !min.nil? && interval < min
       return 0 if interval < 0
       interval
+    end
+  end
+
+  class AdjustedGaussianClaimInterval < GaussianClaimInterval
+    def interval(dm)
+      apply_min(dm.random.gauss_rand(mean, std_dev) * dm.interval_adjuster.factor)
     end
   end
 
@@ -37,7 +48,7 @@ class Plunder::MoonFaucet
   attr_reader :dm, :url, :address
   def_delegators :@dm, :browser
 
-  def initialize(dm, url, address, claim_interval = GaussianClaimInterval.new(8 * 60, 45, 5 * 60))
+  def initialize(dm, url, address, claim_interval = AdjustedGaussianClaimInterval.new(7 * 60, 45, 5 * 60))
     @dm, @url, @address = dm, url, address
     @claim_interval = claim_interval.dup.freeze
     @claim_retry_delays = [

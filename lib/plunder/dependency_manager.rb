@@ -4,6 +4,7 @@ require_relative 'errors'
 require_relative 'captcha/solver'
 require_relative 'utility/scheduler'
 require_relative 'utility/random'
+require_relative 'utility/interval_adjuster'
 
 class Plunder::DependencyManager
   DEPENDENCIES = {
@@ -19,6 +20,9 @@ class Plunder::DependencyManager
       end,
       scheduler: ->(_) do
         Plunder::Utility::Scheduler.new
+      end,
+      interval_adjuster: ->(_) do
+        Plunder::Utility::IntervalAdjuster.new(5, 1)
       end
   }.freeze
 

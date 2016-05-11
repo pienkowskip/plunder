@@ -21,7 +21,7 @@ class Plunder
     @dm = DependencyManager.new
     dm.plunder = self
     dm.config = Config.new(config_filename).freeze
-    stat(:application, :init)
+    stat(:application, :init, :plunder, VERSION)
   end
 
   def setup_browser
