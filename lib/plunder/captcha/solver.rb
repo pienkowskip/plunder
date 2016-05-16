@@ -21,6 +21,9 @@ class Plunder
       extend Forwardable
 
       DEFAULT_MAX_CAPTCHA_REFRESHES = 3
+      CAPTCHA_PERCEPTION_LATENCY = 8
+      AVERAGE_CPM = 280
+
 
       attr_reader :dm
       def_delegators :@dm, :browser
@@ -59,6 +62,7 @@ class Plunder
         handle_new_captcha(captcha)
         try_solve.call(@ocr_solvers)
         while !answer && refreshes < @max_captcha_refreshes do
+          captcha_perception_wait(CAPTCHA_PERCEPTION_LATENCY / 4.0)
           logger.debug { 'Provided captcha not solved by OCR based solvers. Refreshing.' }
           captcha = refresh_captcha(popup)
           captcha_logger[:status] = :refreshed
@@ -81,9 +85,16 @@ class Plunder
           raise Plunder::CaptchaError, 'Captcha type not recognized.'
         end
         answer.force_encoding(Encoding::UTF_8)
+        captcha_perception_wait(CAPTCHA_PERCEPTION_LATENCY)
         logger.debug { 'Submitting captcha answer [%s].' % answer }
         captcha_logger[:answer] = answer
-        popup.find(:id, 'adcopy_response').send_keys(answer, :Enter)
+        response_input = popup.find(:id, 'adcopy_response')
+        latency = 60.0 / AVERAGE_CPM
+        answer.each_char do |char|
+          response_input.send_keys(char)
+          dm.random.gauss_sleep(latency, latency / 3.0)
+        end
+        response_input.send_keys(:Enter)
         inline_rescue(Timeout::Error) do
           Timeout.timeout(@sub_timeout) do
             nil until has_result?('BodyPlaceholder_SuccessfulClaimPanel') || has_result?('BodyPlaceholder_FailedClaimPanel')
@@ -161,6 +172,7 @@ class Plunder
             raise Plunder::BeforeClaimError, 'Timed out waiting for captcha image to load.'
           end
         end
+        @captcha_loaded_at = Time.now
         dm.interval_adjuster.report(:captcha_loaded)
         captcha_logger.open_entry.image = render_element(captcha_element)
       end
@@ -176,6 +188,13 @@ class Plunder
             return false;
           })()
         JAVASCRIPT
+      end
+
+      def captcha_perception_wait(latency)
+        latency = dm.random.gauss_rand(latency, latency / 4.0)
+        latency = @captcha_loaded_at - Time.now + latency
+        @captcha_loaded_at = nil
+        sleep(latency) if latency > 0
       end
     end
   end

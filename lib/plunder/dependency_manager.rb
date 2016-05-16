@@ -22,7 +22,7 @@ class Plunder::DependencyManager
         Plunder::Utility::Scheduler.new
       end,
       interval_adjuster: ->(_) do
-        Plunder::Utility::IntervalAdjuster.new(5, 1)
+        Plunder::Utility::IntervalAdjuster.new(8, 1)
       end
   }.freeze
 
